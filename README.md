@@ -6,10 +6,10 @@ Recreates the soothing low-frequency rumble of a Galaxy-class starship cruising 
 
 ---
 
-## [Launch the Live Synthesizer](https://m-spangenberg.github.io/warp/)
+### [Open Warp](https://m-spangenberg.github.io/warp/)
 
 > [!NOTE]  
-> **Mobile Friendly:** Works directly in mobile browsers! Just tap anywhere on the screen or hit the **Sound** toggle to start the audio context.
+> **Mobile Friendly:** Works on desktop and mobile. Full full-screen offline access you can install this 
 
 ---
 

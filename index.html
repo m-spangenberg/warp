@@ -137,6 +137,12 @@
         </div>
 
         <div class="setting-group">
+            <label for="phaseDupRange">Phase Dups</label>
+            <input type="range" id="phaseDupRange" min="0" max="4" step="1" value="0">
+            <span class="display-val" id="phaseDupDisplay">0</span>
+        </div>
+
+        <div class="setting-group">
             <label for="stereoWidthRange">Sound Width</label>
             <input type="range" id="stereoWidthRange" min="0" max="1" step="0.05" value="0.80">
             <span class="display-val" id="widthDisplay">80%</span>
@@ -267,14 +273,12 @@
         // --- Audio Architecture ---
         let audioCtx = null;
         let masterGain = null;
-        let reverbGainNode = null;
-        let chorusGainNode = null;
 
-        // Stereo Spatializer
-        let midGainNode = null;
-        let sideGainNode = null;
+        // Active Engine Instances (Main + Phase Duplicates)
+        let mainEngineInstance = null;
+        let duplicateEngineInstances = [];
 
-        // Industrial Cooling Ring Layer
+        // Single Hi-Layer (Shared/Global)
         let hiFreqEnabled = false;
         let hiFreqGain = null;
         let hiFreqBaseVol = 0.25;
@@ -298,70 +302,69 @@
             return impulse;
         }
 
-        function initSynthesizer() {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // Creates a complete, standalone Tab Audio Instance (Synthesizer + Chorus + Reverb + Spatializer)
+        function createFullEngineInstance(ctx, destination) {
+            const instanceBus = ctx.createGain();
+            instanceBus.gain.setValueAtTime(1.0, ctx.currentTime); // 100% volume output matching real tab behavior
+            instanceBus.connect(destination);
 
-            masterGain = audioCtx.createGain();
-            masterGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            masterGain.connect(audioCtx.destination);
+            const dryBus = ctx.createGain();
+            dryBus.gain.setValueAtTime(0.7, ctx.currentTime);
+            dryBus.connect(instanceBus);
 
-            const dryBus = audioCtx.createGain();
-            dryBus.gain.setValueAtTime(0.7, audioCtx.currentTime);
-            dryBus.connect(masterGain);
+            // 1. Independent Reverb Engine
+            const convolver = ctx.createConvolver();
+            convolver.buffer = createReverbBuffer(ctx);
 
-            // Reverb Engine
-            const convolver = audioCtx.createConvolver();
-            convolver.buffer = createReverbBuffer(audioCtx);
-
-            reverbGainNode = audioCtx.createGain();
+            const reverbGainNode = ctx.createGain();
             const initRev = parseFloat(document.getElementById('reverbMixRange').value);
-            reverbGainNode.gain.setValueAtTime(initRev, audioCtx.currentTime);
+            reverbGainNode.gain.setValueAtTime(initRev, ctx.currentTime);
 
             convolver.connect(reverbGainNode);
-            reverbGainNode.connect(masterGain);
+            reverbGainNode.connect(instanceBus);
 
-            // Chorus Engine
-            const chorusDelay = audioCtx.createDelay();
-            chorusDelay.delayTime.setValueAtTime(0.025, audioCtx.currentTime);
+            // 2. Independent Chorus Engine
+            const chorusDelay = ctx.createDelay();
+            chorusDelay.delayTime.setValueAtTime(0.025, ctx.currentTime);
 
-            const chorusLFO = audioCtx.createOscillator();
-            chorusLFO.frequency.setValueAtTime(0.3, audioCtx.currentTime);
+            const chorusLFO = ctx.createOscillator();
+            chorusLFO.frequency.setValueAtTime(0.28 + Math.random() * 0.04, ctx.currentTime);
 
-            const chorusDepth = audioCtx.createGain();
-            chorusDepth.gain.setValueAtTime(0.003, audioCtx.currentTime);
+            const chorusDepth = ctx.createGain();
+            chorusDepth.gain.setValueAtTime(0.003, ctx.currentTime);
 
             chorusLFO.connect(chorusDepth);
             chorusDepth.connect(chorusDelay.delayTime);
             chorusLFO.start();
 
-            chorusGainNode = audioCtx.createGain();
+            const chorusGainNode = ctx.createGain();
             const initChorus = parseFloat(document.getElementById('chorusMixRange').value);
-            chorusGainNode.gain.setValueAtTime(initChorus, audioCtx.currentTime);
+            chorusGainNode.gain.setValueAtTime(initChorus, ctx.currentTime);
 
             chorusDelay.connect(chorusGainNode);
-            chorusGainNode.connect(masterGain);
+            chorusGainNode.connect(instanceBus);
 
-            // --- Mid-Side Stereo Widening Matrix ---
-            const synthOutputBus = audioCtx.createGain();
+            // 3. Independent Mid-Side Stereo Widening Matrix
+            const synthOutputBus = ctx.createGain();
 
             const widthVal = parseFloat(document.getElementById('stereoWidthRange').value);
-            midGainNode = audioCtx.createGain();
-            midGainNode.gain.setValueAtTime(1 - widthVal * 0.25, audioCtx.currentTime);
+            const midGainNode = ctx.createGain();
+            midGainNode.gain.setValueAtTime(1 - widthVal * 0.25, ctx.currentTime);
 
-            const sideDelay = audioCtx.createDelay();
-            sideDelay.delayTime.setValueAtTime(0.014, audioCtx.currentTime);
+            const sideDelay = ctx.createDelay();
+            sideDelay.delayTime.setValueAtTime(0.012 + Math.random() * 0.004, ctx.currentTime);
 
-            const sideAllpass = audioCtx.createBiquadFilter();
+            const sideAllpass = ctx.createBiquadFilter();
             sideAllpass.type = 'allpass';
-            sideAllpass.frequency.setValueAtTime(650, audioCtx.currentTime);
+            sideAllpass.frequency.setValueAtTime(650 + (Math.random() - 0.5) * 40, ctx.currentTime);
 
-            sideGainNode = audioCtx.createGain();
-            sideGainNode.gain.setValueAtTime(widthVal * 0.85, audioCtx.currentTime);
+            const sideGainNode = ctx.createGain();
+            sideGainNode.gain.setValueAtTime(widthVal * 0.85, ctx.currentTime);
 
-            const sideInverter = audioCtx.createGain();
-            sideInverter.gain.setValueAtTime(-1, audioCtx.currentTime);
+            const sideInverter = ctx.createGain();
+            sideInverter.gain.setValueAtTime(-1, ctx.currentTime);
 
-            const spatialMerger = audioCtx.createChannelMerger(2);
+            const spatialMerger = ctx.createChannelMerger(2);
 
             synthOutputBus.connect(midGainNode);
             synthOutputBus.connect(sideDelay);
@@ -379,9 +382,9 @@
             spatialMerger.connect(convolver);
             spatialMerger.connect(chorusDelay);
 
-            // Noise Buffer Generator
-            const bufferSize = audioCtx.sampleRate * 4;
-            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            // 4. Independent Noise Buffer Generation
+            const bufferSize = ctx.sampleRate * 4;
+            const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
             const output = noiseBuffer.getChannelData(0);
             let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
             for (let i = 0; i < bufferSize; i++) {
@@ -396,42 +399,43 @@
                 b6 = white * 0.115926;
             }
 
-            // --- Core Engine Hum ---
-            const noiseSource = audioCtx.createBufferSource();
+            // 5. Sound Sources (Core Hum, Sub Bass, Pulse, Undulating Wind)
+            const noiseSource = ctx.createBufferSource();
             noiseSource.buffer = noiseBuffer;
             noiseSource.loop = true;
 
-            const noiseFilter = audioCtx.createBiquadFilter();
+            const noiseFilter = ctx.createBiquadFilter();
             noiseFilter.type = 'lowpass';
-            noiseFilter.frequency.setValueAtTime(130, audioCtx.currentTime);
+            noiseFilter.frequency.setValueAtTime(130, ctx.currentTime);
 
             noiseSource.connect(noiseFilter);
             noiseFilter.connect(synthOutputBus);
 
-            const osc1 = audioCtx.createOscillator();
-            const osc2 = audioCtx.createOscillator();
+            const detune = (Math.random() - 0.5) * 0.3;
+            const osc1 = ctx.createOscillator();
+            const osc2 = ctx.createOscillator();
             osc1.type = 'sine'; osc2.type = 'sine';
-            osc1.frequency.setValueAtTime(58, audioCtx.currentTime);
-            osc2.frequency.setValueAtTime(58.7, audioCtx.currentTime);
+            osc1.frequency.setValueAtTime(58 + detune, ctx.currentTime);
+            osc2.frequency.setValueAtTime(58.7 + detune, ctx.currentTime);
 
-            const subGain = audioCtx.createGain();
-            subGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            const subGain = ctx.createGain();
+            subGain.gain.setValueAtTime(0.3, ctx.currentTime);
             osc1.connect(subGain);
             osc2.connect(subGain);
             subGain.connect(synthOutputBus);
 
-            const pulseOsc = audioCtx.createOscillator();
+            const pulseOsc = ctx.createOscillator();
             pulseOsc.type = 'sine';
-            pulseOsc.frequency.setValueAtTime(78, audioCtx.currentTime);
+            pulseOsc.frequency.setValueAtTime(78 + detune, ctx.currentTime);
 
-            const pulseGain = audioCtx.createGain();
-            pulseGain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            const pulseGain = ctx.createGain();
+            pulseGain.gain.setValueAtTime(0.15, ctx.currentTime);
 
-            const pulseLFO = audioCtx.createOscillator();
-            pulseLFO.frequency.setValueAtTime(0.77, audioCtx.currentTime);
+            const pulseLFO = ctx.createOscillator();
+            pulseLFO.frequency.setValueAtTime(0.77 + (Math.random() - 0.5) * 0.04, ctx.currentTime);
 
-            const pulseLFODepth = audioCtx.createGain();
-            pulseLFODepth.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            const pulseLFODepth = ctx.createGain();
+            pulseLFODepth.gain.setValueAtTime(0.1, ctx.currentTime);
 
             pulseLFO.connect(pulseLFODepth);
             pulseLFODepth.connect(pulseGain.gain);
@@ -439,34 +443,27 @@
             pulseOsc.connect(pulseGain);
             pulseGain.connect(synthOutputBus);
 
-            noiseSource.start();
-            osc1.start();
-            osc2.start();
-            pulseOsc.start();
-            pulseLFO.start();
-
-            // --- Undulating Low-Wind Layer (Upper Bass Air Sweeps) ---
-            const windNoiseSource = audioCtx.createBufferSource();
+            const windNoiseSource = ctx.createBufferSource();
             windNoiseSource.buffer = noiseBuffer;
             windNoiseSource.loop = true;
 
-            const windFilter = audioCtx.createBiquadFilter();
+            const windFilter = ctx.createBiquadFilter();
             windFilter.type = 'bandpass';
-            windFilter.frequency.setValueAtTime(160, audioCtx.currentTime);
-            windFilter.Q.setValueAtTime(1.8, audioCtx.currentTime);
+            windFilter.frequency.setValueAtTime(160, ctx.currentTime);
+            windFilter.Q.setValueAtTime(1.8, ctx.currentTime);
 
-            const windGain = audioCtx.createGain();
-            windGain.gain.setValueAtTime(0.28, audioCtx.currentTime);
+            const windGain = ctx.createGain();
+            windGain.gain.setValueAtTime(0.28, ctx.currentTime);
 
-            const windLFO = audioCtx.createOscillator();
+            const windLFO = ctx.createOscillator();
             windLFO.type = 'sine';
-            windLFO.frequency.setValueAtTime(0.13, audioCtx.currentTime); // Out-of-phase rate (~7.7s cycle)
+            windLFO.frequency.setValueAtTime(0.13 + (Math.random() - 0.5) * 0.02, ctx.currentTime);
 
-            const windFilterMod = audioCtx.createGain();
-            windFilterMod.gain.setValueAtTime(75, audioCtx.currentTime); // Cutoff sweeps 85 Hz - 235 Hz
+            const windFilterMod = ctx.createGain();
+            windFilterMod.gain.setValueAtTime(75, ctx.currentTime);
 
-            const windGainMod = audioCtx.createGain();
-            windGainMod.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            const windGainMod = ctx.createGain();
+            windGainMod.gain.setValueAtTime(0.12, ctx.currentTime);
 
             windLFO.connect(windFilterMod);
             windFilterMod.connect(windFilter.frequency);
@@ -478,10 +475,79 @@
             windFilter.connect(windGain);
             windGain.connect(synthOutputBus);
 
-            windNoiseSource.start();
+            const offset1 = Math.random() * noiseBuffer.duration;
+            const offset2 = Math.random() * noiseBuffer.duration;
+            noiseSource.start(0, offset1);
+            osc1.start();
+            osc2.start();
+            pulseOsc.start();
+            pulseLFO.start();
+            windNoiseSource.start(0, offset2);
             windLFO.start();
 
-            // --- Muffled Industrial Cooling Layer ---
+            return {
+                synthOutputBus,
+                midGainNode,
+                sideGainNode,
+                reverbGainNode,
+                chorusGainNode,
+                stop: () => {
+                    try { noiseSource.stop(); } catch(e) {}
+                    try { osc1.stop(); } catch(e) {}
+                    try { osc2.stop(); } catch(e) {}
+                    try { pulseOsc.stop(); } catch(e) {}
+                    try { pulseLFO.stop(); } catch(e) {}
+                    try { windNoiseSource.stop(); } catch(e) {}
+                    try { windLFO.stop(); } catch(e) {}
+                    try { chorusLFO.stop(); } catch(e) {}
+                    setTimeout(() => { instanceBus.disconnect(); }, 50);
+                }
+            };
+        }
+
+        function updateAllInstances(param, value) {
+            const allInstances = [mainEngineInstance, ...duplicateEngineInstances].filter(Boolean);
+            const now = audioCtx ? audioCtx.currentTime : 0;
+
+            allInstances.forEach(inst => {
+                if (param === 'width' && inst.midGainNode && inst.sideGainNode) {
+                    inst.midGainNode.gain.setValueAtTime(1 - value * 0.25, now);
+                    inst.sideGainNode.gain.setValueAtTime(value * 0.85, now);
+                } else if (param === 'reverb' && inst.reverbGainNode) {
+                    inst.reverbGainNode.gain.setValueAtTime(value, now);
+                } else if (param === 'chorus' && inst.chorusGainNode) {
+                    inst.chorusGainNode.gain.setValueAtTime(value, now);
+                }
+            });
+        }
+
+        function syncDuplicateInstances(targetCount) {
+            if (!audioCtx || !masterGain) return;
+
+            while (duplicateEngineInstances.length < targetCount) {
+                duplicateEngineInstances.push(createFullEngineInstance(audioCtx, masterGain));
+            }
+            while (duplicateEngineInstances.length > targetCount) {
+                const inst = duplicateEngineInstances.pop();
+                if (inst) inst.stop();
+            }
+        }
+
+        function initSynthesizer() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+            masterGain = audioCtx.createGain();
+            masterGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            masterGain.connect(audioCtx.destination);
+
+            // Primary Tab Instance
+            mainEngineInstance = createFullEngineInstance(audioCtx, masterGain);
+
+            // Duplicate Tab Instances
+            const initPhaseDup = parseInt(document.getElementById('phaseDupRange').value);
+            syncDuplicateInstances(initPhaseDup);
+
+            // Muffled Industrial Cooling Layer (Single Global High Layer)
             hiFreqGain = audioCtx.createGain();
             hiFreqBaseVol = parseFloat(document.getElementById('hiVolRange').value);
             hiFreqGain.gain.setValueAtTime(hiFreqEnabled ? hiFreqBaseVol : 0, audioCtx.currentTime);
@@ -491,13 +557,30 @@
             hiDampingFilter.frequency.setValueAtTime(1200, audioCtx.currentTime);
 
             hiFreqGain.connect(hiDampingFilter);
-            hiDampingFilter.connect(synthOutputBus);
+            hiDampingFilter.connect(masterGain);
 
             const pVal = parseFloat(document.getElementById('hiPitchRange').value);
             const sVal = parseFloat(document.getElementById('hiSpeedRange').value);
 
+            // High Noise Buffer Generator
+            const bufferSize = audioCtx.sampleRate * 4;
+            const hiNoiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = hiNoiseBuffer.getChannelData(0);
+            let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                b0 = 0.99886 * b0 + white * 0.0555179;
+                b1 = 0.99332 * b1 + white * 0.0750759;
+                b2 = 0.96900 * b2 + white * 0.1538520;
+                b3 = 0.86650 * b3 + white * 0.3104856;
+                b4 = 0.55000 * b4 + white * 0.5329522;
+                b5 = -0.7616 * b5 - white * 0.0168980;
+                output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.08;
+                b6 = white * 0.115926;
+            }
+
             const hiNoiseSource = audioCtx.createBufferSource();
-            hiNoiseSource.buffer = noiseBuffer;
+            hiNoiseSource.buffer = hiNoiseBuffer;
             hiNoiseSource.loop = true;
 
             hiResFilter1 = audioCtx.createBiquadFilter();
@@ -556,30 +639,28 @@
         }
 
         // --- Dynamic Control Listeners ---
+        document.getElementById('phaseDupRange').addEventListener('input', (e) => {
+            const count = parseInt(e.target.value);
+            document.getElementById('phaseDupDisplay').textContent = count;
+            syncDuplicateInstances(count);
+        });
+
         document.getElementById('stereoWidthRange').addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             document.getElementById('widthDisplay').textContent = Math.round(val * 100) + '%';
-            if (audioCtx && midGainNode && sideGainNode) {
-                const now = audioCtx.currentTime;
-                midGainNode.gain.setValueAtTime(1 - val * 0.25, now);
-                sideGainNode.gain.setValueAtTime(val * 0.85, now);
-            }
+            updateAllInstances('width', val);
         });
 
         document.getElementById('reverbMixRange').addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             document.getElementById('reverbDisplay').textContent = Math.round(val * 100) + '%';
-            if (audioCtx && reverbGainNode) {
-                reverbGainNode.gain.setValueAtTime(val, audioCtx.currentTime);
-            }
+            updateAllInstances('reverb', val);
         });
 
         document.getElementById('chorusMixRange').addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             document.getElementById('chorusDisplay').textContent = Math.round(val * 100) + '%';
-            if (audioCtx && chorusGainNode) {
-                chorusGainNode.gain.setValueAtTime(val, audioCtx.currentTime);
-            }
+            updateAllInstances('chorus', val);
         });
 
         const hiFreqToggleEl = document.getElementById('hiFreqToggle');

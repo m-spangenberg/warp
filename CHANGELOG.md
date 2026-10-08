@@ -16,7 +16,8 @@ All notable changes to Warp are documented in this file. Each version lists its 
 - Added keyboard support (Enter/Space) and ARIA switch roles to the toggle controls.
 - Added a headless Chrome test suite (tests/) with automated screenshots for PWA, control panel, effects, and settings behavior.
 - Changed the control panel to be hidden by default, revealed from a small icon in the top-right corner (which peeks slightly brighter while you move over the scene), and shown centered on screen with the same blue glow as the install CTA; auto-hides when idle.
-- Changed the mobile control panel to a scrollable sheet that fills most of the screen.
+- Changed the control panel to a centered, scrollable sheet with starfield and soundscape sections on both desktop and mobile.
+- Changed the install call-to-action and corner controls to respect the safe-area insets of notched iOS devices.
 - Changed starfield rendering to scale with devicePixelRatio for sharp stars on high-DPI displays.
 - Changed the viewport to use viewport-fit=cover so the installed app renders edge-to-edge on notched iOS devices.
 - Changed the social preview image to the recommended 1280x640 dimensions.

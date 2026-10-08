@@ -1,0 +1,12 @@
+{
+  "name": "warp-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Headless Chrome test suite for Warp: PWA/offline, install CTA, control panel, effects, settings.",
+  "scripts": {
+    "test": "node run.js"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.12.0"
+  }
+}

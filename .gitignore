@@ -1,0 +1,16 @@
+# Local test artifacts (headless browser screenshots)
+.shots/
+
+# Test dependencies
+tests/node_modules/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# Logs
+*.log

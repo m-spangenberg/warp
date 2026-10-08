@@ -10,8 +10,8 @@ Recreates the soothing low-frequency rumble of a Galaxy-class starship cruising 
 
 ### [Go To Warp](https://m-spangenberg.github.io/warp/)
 
-> [!NOTE] This ia a PWA app.
-> **Mobile Friendly:** Works on desktop and mobile. For offline access you can install this as an app.
+> [!NOTE] 
+> **Mobile Friendly:** This ia a PWA app that works on desktop and mobile. For offline access you can install this as an app.
 
 ## Tests
 

@@ -2,6 +2,11 @@
 
 All notable changes to Warp are documented in this file. Each version lists its changes by type: Added, Changed, Deprecated, Removed, Fixed, Security.
 
+## v0.2.0
+
+- Added a Rear View toggle to the control panel: the camera faces away from the direction of travel, so stars enter from the edge of the screen and streak inward toward the vanishing point (default remains the front view). The view mode is persisted with the other settings and restored on launch.
+- Added test coverage for star motion direction in both views (via an opt-in `?debug=1` debug hook) and for the new toggle's persistence.
+
 ## v0.1.1
 
 - Fixed sound not starting after reload on mobile browsers that create the audio context in a suspended state (e.g. iOS Safari); the context is now resumed within the first user gesture, and tap-up events (touchend/click) now count as the unlocking gesture.

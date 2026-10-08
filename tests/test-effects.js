@@ -89,6 +89,42 @@ async function main() {
   });
   await m.close();
 
+  // 7. Rear view: stars recede (z grows) instead of approaching. ?debug=1
+  //    exposes the simulation internals for this check.
+  const d = await browser.newPage();
+  await d.setViewport({ width: 1280, height: 800, deviceScaleFactor: 1 });
+  const dErrors = trackErrors(d);
+  await d.goto(BASE + '?debug=1', { waitUntil: 'networkidle0' });
+  await new Promise((r) => setTimeout(r, 600));
+  // Fraction of stars whose z shrank/grew over a 700ms window. In the
+  // steady state a constant share wraps at the far/near boundary, so the
+  // majority direction is the unambiguous signal (~58% vs ~42%).
+  const zTrend = async () => {
+    await d.evaluate(() => { window.__zs = window.__warp.stars.map((s) => s.z); });
+    await new Promise((r) => setTimeout(r, 700));
+    return d.evaluate(() => {
+      const now = window.__warp.stars.map((s) => s.z);
+      const prev = window.__zs;
+      let down = 0, up = 0;
+      for (let i = 0; i < now.length; i++) {
+        if (now[i] < prev[i] - 1) down++;
+        else if (now[i] > prev[i] + 1) up++;
+      }
+      return { down, up, count: now.length };
+    });
+  };
+  results.frontViewZ = await zTrend(); // approach: majority z decreasing
+  await d.evaluate(() => document.getElementById('rearViewToggle').click());
+  await new Promise((r) => setTimeout(r, 100));
+  results.rearViewZ = await zTrend();  // recede: majority z increasing
+  results.rearViewToggle = await d.evaluate(() => ({
+    active: document.getElementById('rearViewToggle').classList.contains('active'),
+    ariaChecked: document.getElementById('rearViewToggle').getAttribute('aria-checked'),
+  }));
+  await d.screenshot({ path: SHOTS + '/rear-view.png' });
+  results.rearViewErrors = dErrors;
+  await d.close();
+
   results.errors = errors;
   await browser.close();
   console.log(JSON.stringify(results, null, 2));

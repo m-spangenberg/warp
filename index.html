@@ -390,6 +390,11 @@
                 <div class="toggle" id="trailsToggle" role="switch" tabindex="0" aria-checked="false" aria-label="Trails"></div>
             </div>
 
+            <div class="setting-group toggle-row">
+                <label for="rearViewToggle">Rear View</label>
+                <div class="toggle" id="rearViewToggle" role="switch" tabindex="0" aria-checked="false" aria-label="Rear View"></div>
+            </div>
+
             <div class="setting-group">
                 <label for="aberrationRange">Aberration</label>
                 <input type="range" id="aberrationRange" min="0" max="1" step="0.01" value="0">
@@ -482,7 +487,7 @@
 
     <script>
         // Release version - keep in sync with CHANGELOG.md
-        const APP_VERSION = '0.1.1';
+        const APP_VERSION = '0.2.0';
 
         const canvas = document.getElementById('warpCanvas');
         const ctx = canvas.getContext('2d');
@@ -508,6 +513,7 @@
         const FOCAL_LENGTH = 400;
         let speed = 15;
         let showTrails = false;
+        let rearView = false;
         let aberration = 0;
 
         class Star {
@@ -515,15 +521,27 @@
             reset(initial = false) {
                 this.x = (Math.random() - 0.5) * width * 3;
                 this.y = (Math.random() - 0.5) * height * 3;
-                this.z = initial ? Math.random() * MAX_DEPTH : MAX_DEPTH;
+                // Front view: stars are born far away (near the center) and
+                // approach the camera. Rear view: stars are born close, just
+                // outside the edge of view, and recede toward the center.
+                if (initial) {
+                    this.z = Math.random() * MAX_DEPTH;
+                } else {
+                    this.z = rearView ? 1 + Math.random() * MAX_DEPTH * 0.02 : MAX_DEPTH;
+                }
                 this.px = centerX + (this.x / this.z) * FOCAL_LENGTH;
                 this.py = centerY + (this.y / this.z) * FOCAL_LENGTH;
             }
             update() {
                 this.px = centerX + (this.x / this.z) * FOCAL_LENGTH;
                 this.py = centerY + (this.y / this.z) * FOCAL_LENGTH;
-                this.z -= speed;
-                if (this.z <= 0) this.reset(false);
+                if (rearView) {
+                    this.z += speed;
+                    if (this.z >= MAX_DEPTH) this.reset(false);
+                } else {
+                    this.z -= speed;
+                    if (this.z <= 0) this.reset(false);
+                }
             }
             draw() {
                 const sx = centerX + (this.x / this.z) * FOCAL_LENGTH;
@@ -603,6 +621,22 @@
             showTrails = !showTrails;
             this.classList.toggle('active');
             this.setAttribute('aria-checked', String(showTrails));
+        });
+
+        // Rear view: the camera faces away from the direction of travel, so
+        // stars enter from the edge of the screen and streak inward toward
+        // the vanishing point. Flipping the view re-seeds the starfield.
+        function setViewMode(rear) {
+            if (rearView === rear) return;
+            rearView = rear;
+            stars.forEach((s) => s.reset(true));
+        }
+
+        const rearViewToggle = document.getElementById('rearViewToggle');
+        rearViewToggle.addEventListener('click', function() {
+            setViewMode(!rearView);
+            this.classList.toggle('active', rearView);
+            this.setAttribute('aria-checked', String(rearView));
         });
 
         document.getElementById('aberrationRange').addEventListener('input', (e) => {
@@ -1076,7 +1110,7 @@
         });
 
         // Keyboard support for the visual switches (Space / Enter)
-        [trailsToggle, hiFreqToggleEl, soundToggleEl].forEach((el) => {
+        [trailsToggle, rearViewToggle, hiFreqToggleEl, soundToggleEl].forEach((el) => {
             el.addEventListener('keydown', (e) => {
                 if (e.key === ' ' || e.key === 'Enter') {
                     e.preventDefault();
@@ -1092,7 +1126,7 @@
             'phaseDupRange', 'stereoWidthRange', 'reverbMixRange', 'chorusMixRange',
             'hiVolRange', 'hiPitchRange', 'hiSpeedRange'
         ];
-        const toggleIds = ['trailsToggle', 'soundToggle', 'hiFreqToggle'];
+        const toggleIds = ['trailsToggle', 'rearViewToggle', 'soundToggle', 'hiFreqToggle'];
 
         const syncToggleAria = () => {
             toggleIds.forEach((id) => {
@@ -1132,6 +1166,7 @@
 
             // Runtime flags that don't flow through an input event
             showTrails = document.getElementById('trailsToggle').classList.contains('active');
+            setViewMode(document.getElementById('rearViewToggle').classList.contains('active'));
             hiFreqEnabled = document.getElementById('hiFreqToggle').classList.contains('active');
 
             // Audio cannot start before the user's first gesture - if sound
@@ -1162,6 +1197,7 @@
             toggleIds.forEach((id) => { document.getElementById(id).classList.remove('active'); });
             syncToggleAria();
             showTrails = false;
+            setViewMode(false);
             hiFreqEnabled = false;
 
             // Bring the live audio graph back in line with the restored defaults
@@ -1178,6 +1214,15 @@
 
         updateStarCount();
         animate();
+
+        // Debug handle for the automated test suite (tests/): load with
+        // ?debug=1 to expose simulation internals on window.__warp.
+        if (new URLSearchParams(location.search).has('debug')) {
+            window.__warp = {
+                get stars() { return stars; },
+                get rearView() { return rearView; },
+            };
+        }
 
         // --- Control panel: opened from the tiny icon in the top-right,
         //     auto-hides again once idle ---

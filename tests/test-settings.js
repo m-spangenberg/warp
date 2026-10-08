@@ -16,7 +16,7 @@ async function main() {
     const g = (id) => document.getElementById(id).value;
     const a = (id) => document.getElementById(id).classList.contains('active');
     return {
-      speed: g('speedRange'), count: g('countRange'), trails: a('trailsToggle'),
+      speed: g('speedRange'), count: g('countRange'), trails: a('trailsToggle'), rear: a('rearViewToggle'),
       sound: a('soundToggle'), hi: a('hiFreqToggle'), aberr: g('aberrationRange'),
       glow: g('edgeGlowRange'), reverb: g('reverbMixRange'),
       speedDisplay: document.getElementById('speedDisplay').textContent,
@@ -78,6 +78,7 @@ async function main() {
     set('edgeGlowRange', '0.3');
     set('reverbMixRange', '0.5');
     document.getElementById('trailsToggle').click();
+    document.getElementById('rearViewToggle').click();
     document.getElementById('hiFreqToggle').click();
   });
   await new Promise((r) => setTimeout(r, 300));

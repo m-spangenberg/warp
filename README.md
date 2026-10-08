@@ -11,7 +11,10 @@ Recreates the soothing low-frequency rumble of a Galaxy-class starship cruising 
 ### [Go To Warp](https://m-spangenberg.github.io/warp/)
 
 > [!NOTE] 
-> **Mobile Friendly:** This is a PWA app that works on desktop and mobile. For offline access you can install this as an app.
+> **Mobile Friendly:** This is a Progressive Web App that works offline on desktop and mobile.
+
+> [!WARNING]
+> **Known Bug:** On iOS, audio will fail to resume when reopening the app. A workaround is to switch audio toggle to off then close the app before reopening it.
 
 *Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.*
 

@@ -55,7 +55,7 @@
             height: 100vh;
         }
 
-        /* Blue edge glow (slider-controlled) — same hues as the install CTA's glow. */
+        /* Blue edge glow (slider-controlled) - same hues as the install CTA's glow. */
         .edge-glow {
             position: fixed;
             inset: 0;
@@ -67,7 +67,7 @@
                 inset 0 0 190px 55px rgba(70, 130, 255, 0.7);
         }
 
-        /* Centered, scrollable control sheet — the same layout on desktop
+        /* Centered, scrollable control sheet - the same layout on desktop
            and mobile (the media query below only re-sizes for small screens). */
         .settings {
             position: fixed;
@@ -105,7 +105,7 @@
             border-radius: 2px;
         }
 
-        /* Open state — toggled from the tiny icon in the top-right.
+        /* Open state - toggled from the tiny icon in the top-right.
            Same blue glow as the install CTA. */
         .settings.open {
             opacity: 1;
@@ -134,7 +134,7 @@
             justify-content: space-between;
         }
 
-        /* Tiny toggle icon in the top-right corner — the only always-visible
+        /* Tiny toggle icon in the top-right corner - the only always-visible
            hint that controls exist (same faint opacity as the old hidden panel). */
         .panel-toggle {
             position: fixed;
@@ -481,8 +481,8 @@
     </div>
 
     <script>
-        // Release version — keep in sync with CHANGELOG.md
-        const APP_VERSION = '0.1.0';
+        // Release version - keep in sync with CHANGELOG.md
+        const APP_VERSION = '0.1.1';
 
         const canvas = document.getElementById('warpCanvas');
         const ctx = canvas.getContext('2d');
@@ -535,7 +535,7 @@
 
                 ctx.lineCap = 'round';
 
-                // Base trail — always rendered exactly as before.
+                // Base trail - always rendered exactly as before.
                 ctx.beginPath();
                 ctx.moveTo(this.px, this.py);
                 ctx.lineTo(sx, sy);
@@ -883,6 +883,10 @@
         function initSynthesizer() {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
+            // Some mobile browsers (notably iOS Safari) create the context
+            // suspended even inside a user gesture - start it right away.
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
             masterGain = audioCtx.createGain();
             masterGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
             masterGain.connect(audioCtx.destination);
@@ -1052,18 +1056,23 @@
         });
 
         const soundToggleEl = document.getElementById('soundToggle');
-        soundToggleEl.addEventListener('click', async function() {
-            if (!audioCtx) {
-                initSynthesizer();
-                this.classList.add('active');
-            } else if (audioCtx.state === 'suspended') {
-                await audioCtx.resume();
-                this.classList.add('active');
-            } else if (audioCtx.state === 'running') {
-                await audioCtx.suspend();
-                this.classList.remove('active');
+        soundToggleEl.addEventListener('click', function() {
+            // Flip the switch synchronously so the panel's click-save sees
+            // the new state — the async audio work below must not let the
+            // save race ahead of the class change.
+            const turningOn = !this.classList.contains('active');
+            this.classList.toggle('active', turningOn);
+            this.setAttribute('aria-checked', String(turningOn));
+
+            if (turningOn) {
+                if (!audioCtx) {
+                    initSynthesizer();
+                } else if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            } else if (audioCtx && audioCtx.state === 'running') {
+                audioCtx.suspend();
             }
-            this.setAttribute('aria-checked', String(this.classList.contains('active')));
         });
 
         // Keyboard support for the visual switches (Space / Enter)
@@ -1125,16 +1134,21 @@
             showTrails = document.getElementById('trailsToggle').classList.contains('active');
             hiFreqEnabled = document.getElementById('hiFreqToggle').classList.contains('active');
 
-            // Audio cannot start before the user's first gesture — if sound
+            // Audio cannot start before the user's first gesture - if sound
             // was on, start it then (the sliders already hold the saved params).
+            // touchend/click are included because some mobile browsers only
+            // unlock audio on the tap-up, not the tap-down.
             if (document.getElementById('soundToggle').classList.contains('active')) {
+                const START_EVENTS = ['pointerdown', 'touchend', 'click', 'keydown'];
                 const startAudio = () => {
-                    if (!audioCtx) initSynthesizer();
-                    window.removeEventListener('pointerdown', startAudio);
-                    window.removeEventListener('keydown', startAudio);
+                    if (!audioCtx) {
+                        initSynthesizer();
+                    } else if (audioCtx.state === 'suspended') {
+                        audioCtx.resume();
+                    }
+                    START_EVENTS.forEach((ev) => window.removeEventListener(ev, startAudio));
                 };
-                window.addEventListener('pointerdown', startAudio);
-                window.addEventListener('keydown', startAudio);
+                START_EVENTS.forEach((ev) => window.addEventListener(ev, startAudio));
             }
         };
 

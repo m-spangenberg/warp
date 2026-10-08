@@ -2,6 +2,11 @@
 
 All notable changes to Warp are documented in this file. Each version lists its changes by type: Added, Changed, Deprecated, Removed, Fixed, Security.
 
+## v0.1.1
+
+- Fixed sound not starting after reload on mobile browsers that create the audio context in a suspended state (e.g. iOS Safari); the context is now resumed within the first user gesture, and tap-up events (touchend/click) now count as the unlocking gesture.
+- Fixed the sound toggle saving stale settings: the switch state is now updated synchronously, so persisted settings always match what the user sees after toggling sound on or off.
+
 ## v0.1.0
 
 - Added PWA support: web app manifest, service worker, and app icons. Warp can now be installed and runs fully offline.

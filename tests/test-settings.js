@@ -88,8 +88,13 @@ async function main() {
   await new Promise((r) => setTimeout(r, 800));
   results.afterReload = await getVals();
 
-  // 5. Reset -> back to defaults, storage cleared
-  await page.evaluate(() => document.getElementById('resetBtn').click());
+  // 5. Reset -> back to defaults, storage cleared.
+  //    Use real gestures (not a synthetic .click() via evaluate): a real
+  //    tap fires pointerdown first, which is how the audio-unlock path
+  //    behaves for actual users.
+  await page.click('#panelToggle');
+  await new Promise((r) => setTimeout(r, 400));
+  await page.click('#resetBtn');
   await new Promise((r) => setTimeout(r, 300));
   results.afterReset = await getVals();
   results.storedAfterReset = await page.evaluate(() => localStorage.getItem('warp.settings.v1'));
@@ -119,6 +124,32 @@ async function main() {
   await page.mouse.click(640, 400); // first user gesture
   await new Promise((r) => setTimeout(r, 500));
   results.soundAfterGesture = await page.evaluate(() => document.getElementById('soundToggle').classList.contains('active'));
+
+  // 8. iOS-style audio unlock: the context reports suspended even when
+  //    created inside the first gesture - the restore path must resume() it
+  //    within that same gesture.
+  await page.reload({ waitUntil: 'networkidle0' });
+  await new Promise((r) => setTimeout(r, 800));
+  await page.evaluate(() => {
+    const Orig = window.AudioContext;
+    window.AudioContext = function (...args) {
+      const ctx = new Orig(...args);
+      window.__ac = ctx;
+      const origResume = ctx.resume.bind(ctx);
+      ctx.resume = function () { ctx.__resumeCalls = (ctx.__resumeCalls || 0) + 1; return origResume(); };
+      // Simulate iOS Safari: reports suspended even when created inside a gesture.
+      Object.defineProperty(ctx, 'state', { get: () => 'suspended' });
+      return ctx;
+    };
+    window.AudioContext.prototype = Orig.prototype;
+  });
+  await page.mouse.click(640, 400); // first user gesture
+  await new Promise((r) => setTimeout(r, 600));
+  results.iosStyleUnlock = await page.evaluate(() => ({
+    ctxCreated: !!window.__ac,
+    resumeCalls: window.__ac ? window.__ac.__resumeCalls : 0,
+    toggleOn: document.getElementById('soundToggle').classList.contains('active'),
+  }));
 
   results.errors = errors;
   await browser.close();

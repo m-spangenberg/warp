@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Star Trek - TNG - Tenforward</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .branding {
+            position: fixed;
+            top: 2rem;
+            z-index: 10;
+            text-align: center;
+            padding: 0 1rem;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: 300;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+
+        .status {
+            font-size: 0.8rem;
+            letter-spacing: 0.2em;
+            color: rgba(255, 255, 255, 0.6);
+            text-transform: uppercase;
+            margin-top: 0.5rem;
+        }
+
+        .settings {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(20, 20, 20, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 90vw;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            opacity: 1;
+        }
+
+        .settings.hidden {
+            opacity: 0;
+            transform: translateX(-50%) scale(0.8);
+            pointer-events: none;
+        }
+
+        .setting-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .setting-group label {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        input[type="range"] {
+            width: 120px;
+            accent-color: #fff;
+        }
+
+        .star-count-display {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .toggle {
+            width: 40px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        audio {
+            display: none;
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border-radius: 50%;
+            transition: left 0.3s;
+        }
+
+        .toggle.active {
+            background: rgba(255, 255, 255, 0.6);
+        }
+
+        .toggle.active::after {
+            left: 22px;
+        }
+
+        @media (max-width: 600px) {
+            .logo { font-size: 1.5rem; }
+            .settings {
+                bottom: 1rem;
+                padding: 0.8rem 1rem;
+                gap: 1rem;
+            }
+            .setting-group {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            input[type="range"] {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="warpCanvas"></canvas>
+
+    <div class="settings">
+        <div class="setting-group">
+            <label for="speedRange">Speed</label>
+            <input type="range" id="speedRange" min="1" max="20" value="15">
+            <span class="star-count-display" id="speedDisplay">15x</span>
+        </div>
+
+        <div class="setting-group">
+            <label for="countRange">Stars</label>
+            <input type="range" id="countRange" min="100" max="2000" step="100" value="800">
+            <span class="star-count-display" id="countDisplay">800</span>
+        </div>
+
+        <div class="setting-group">
+            <label for="trailsToggle">Trails</label>
+            <div class="toggle" id="trailsToggle"></div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('warpCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, centerX, centerY;
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            centerX = width / 2;
+            centerY = height / 2;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        let STAR_COUNT = 800;
+        let MAX_DEPTH = 1500;
+        const FOCAL_LENGTH = 400;
+        let speed = 15;
+        let showTrails = false;
+
+        class Star {
+            constructor() {
+                this.reset(true);
+            }
+
+            reset(initial = false) {
+                this.x = (Math.random() - 0.5) * width * 3;
+                this.y = (Math.random() - 0.5) * height * 3;
+                // Distribute depth randomly on initialization, otherwise send to max depth
+                this.z = initial ? Math.random() * MAX_DEPTH : MAX_DEPTH;
+                this.px = centerX + (this.x / this.z) * FOCAL_LENGTH;
+                this.py = centerY + (this.y / this.z) * FOCAL_LENGTH;
+            }
+
+            update() {
+                this.px = centerX + (this.x / this.z) * FOCAL_LENGTH;
+                this.py = centerY + (this.y / this.z) * FOCAL_LENGTH;
+
+                this.z -= speed;
+
+                if (this.z <= 0) {
+                    this.reset(false);
+                }
+            }
+
+            draw() {
+                const sx = centerX + (this.x / this.z) * FOCAL_LENGTH;
+                const sy = centerY + (this.y / this.z) * FOCAL_LENGTH;
+
+                if (sx < 0 || sx > width || sy < 0 || sy > height) return;
+
+                const closeness = 1 - (this.z / MAX_DEPTH);
+                const alpha = Math.min(1, closeness * 1.5);
+                const strokeWidth = Math.max(0.5, closeness * 3);
+
+                ctx.beginPath();
+                ctx.moveTo(this.px, this.py);
+                ctx.lineTo(sx, sy);
+                ctx.strokeStyle = `rgba(220, 240, 255, ${alpha})`;
+                ctx.lineWidth = strokeWidth;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            }
+        }
+
+        let stars = [];
+
+        function updateStarCount() {
+            const newCount = parseInt(document.getElementById('countRange').value);
+            STAR_COUNT = newCount;
+
+            while (stars.length > STAR_COUNT) {
+                stars.pop();
+            }
+            while (stars.length < STAR_COUNT) {
+                stars.push(new Star());
+            }
+
+            document.getElementById('countDisplay').textContent = STAR_COUNT;
+        }
+
+        function animate() {
+            ctx.fillStyle = showTrails ? 'rgba(0, 0, 0, 0.25)' : '#000000';
+            ctx.fillRect(0, 0, width, height);
+
+            for (let star of stars) {
+                star.update();
+                star.draw();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        document.getElementById('speedRange').addEventListener('input', function(e) {
+            speed = parseInt(e.target.value);
+            document.getElementById('speedDisplay').textContent = speed + 'x';
+        });
+
+        document.getElementById('countRange').addEventListener('input', function(e) {
+            updateStarCount();
+        });
+
+        const trailsToggle = document.getElementById('trailsToggle');
+        trailsToggle.addEventListener('click', function() {
+            showTrails = !showTrails;
+            this.classList.toggle('active');
+        });
+
+        // Audio setup
+        const audio = new Audio('tng_engineering_hum.mp3');
+        audio.loop = true;
+        audio.volume = 0.3;
+
+        const soundToggle = document.createElement('div');
+        soundToggle.className = 'setting-group';
+        soundToggle.innerHTML = '<label for="soundToggle" style="color: rgba(255,255,255,0.7);">Sound</label> <div class="toggle" id="soundToggle"></div>';
+        document.querySelector('.settings').appendChild(soundToggle);
+
+        const soundToggleEl = document.getElementById('soundToggle');
+        soundToggleEl.addEventListener('click', function() {
+            if (audio.paused) {
+                audio.play().then(() => {
+                    this.classList.add('active');
+                }).catch(() => {
+                    this.classList.remove('active');
+                });
+            } else {
+                audio.pause();
+                this.classList.remove('active');
+            }
+        });
+
+        audio.addEventListener('pause', () => {
+            soundToggleEl.classList.remove('active');
+        });
+
+        audio.addEventListener('play', () => {
+            soundToggleEl.classList.add('active');
+        });
+
+        updateStarCount();
+        animate();
+    </script>
+</body>
+</html>

@@ -29,55 +29,30 @@
             height: 100vh;
         }
 
-        .branding {
-            position: fixed;
-            top: 2rem;
-            z-index: 10;
-            text-align: center;
-            padding: 0 1rem;
-        }
-
-        .logo {
-            font-size: 2rem;
-            font-weight: 300;
-            letter-spacing: 0.3em;
-            text-transform: uppercase;
-            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-        }
-
-        .status {
-            font-size: 0.8rem;
-            letter-spacing: 0.2em;
-            color: rgba(255, 255, 255, 0.6);
-            text-transform: uppercase;
-            margin-top: 0.5rem;
-        }
-
         .settings {
             position: fixed;
             bottom: 2rem;
             left: 50%;
-            transform: translateX(-50%);
-            background: rgba(20, 20, 20, 0.8);
+            transform: translateX(-50%) translateY(10px);
+            background: rgba(20, 20, 20, 0.85);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 8px;
             padding: 1rem 1.5rem;
             z-index: 10;
             backdrop-filter: blur(10px);
             display: flex;
-            gap: 2rem;
+            gap: 1.2rem;
             align-items: center;
             flex-wrap: wrap;
             justify-content: center;
             max-width: 90vw;
             transition: opacity 0.3s ease, transform 0.3s ease;
-            opacity: 1;
+            opacity: 0.05;
         }
 
-        .settings.hidden {
-            opacity: 0;
-            transform: translateX(-50%) scale(0.8);
-            pointer-events: none;
+        .settings:hover {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
         }
 
         .setting-group {
@@ -92,13 +67,14 @@
         }
 
         input[type="range"] {
-            width: 120px;
+            width: 85px;
             accent-color: #fff;
         }
 
-        .star-count-display {
+        .display-val {
             font-size: 0.8rem;
             color: rgba(255, 255, 255, 0.7);
+            min-width: 40px;
         }
 
         .toggle {
@@ -109,10 +85,6 @@
             position: relative;
             cursor: pointer;
             transition: background 0.3s;
-        }
-
-        audio {
-            display: none;
         }
 
         .toggle::after {
@@ -134,43 +106,46 @@
         .toggle.active::after {
             left: 22px;
         }
-
-        @media (max-width: 600px) {
-            .logo { font-size: 1.5rem; }
-            .settings {
-                bottom: 1rem;
-                padding: 0.8rem 1rem;
-                gap: 1rem;
-            }
-            .setting-group {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            input[type="range"] {
-                width: 100%;
-            }
-        }
     </style>
 </head>
 <body>
     <canvas id="warpCanvas"></canvas>
 
     <div class="settings">
+        <!-- Visual Controls -->
         <div class="setting-group">
             <label for="speedRange">Speed</label>
             <input type="range" id="speedRange" min="1" max="20" value="15">
-            <span class="star-count-display" id="speedDisplay">15x</span>
+            <span class="display-val" id="speedDisplay">15x</span>
         </div>
 
         <div class="setting-group">
             <label for="countRange">Stars</label>
             <input type="range" id="countRange" min="100" max="2000" step="100" value="800">
-            <span class="star-count-display" id="countDisplay">800</span>
+            <span class="display-val" id="countDisplay">800</span>
         </div>
 
         <div class="setting-group">
             <label for="trailsToggle">Trails</label>
             <div class="toggle" id="trailsToggle"></div>
+        </div>
+
+        <!-- Audio Toggle & Effects Controls -->
+        <div class="setting-group">
+            <label for="soundToggle">Sound</label>
+            <div class="toggle" id="soundToggle"></div>
+        </div>
+
+        <div class="setting-group">
+            <label for="reverbMixRange">Reverb Room</label>
+            <input type="range" id="reverbMixRange" min="0" max="1" step="0.05" value="0.35">
+            <span class="display-val" id="reverbDisplay">35%</span>
+        </div>
+
+        <div class="setting-group">
+            <label for="chorusMixRange">Chorus Motion</label>
+            <input type="range" id="chorusMixRange" min="0" max="1" step="0.05" value="0.4">
+            <span class="display-val" id="chorusDisplay">40%</span>
         </div>
     </div>
 
@@ -195,36 +170,24 @@
         let showTrails = false;
 
         class Star {
-            constructor() {
-                this.reset(true);
-            }
-
+            constructor() { this.reset(true); }
             reset(initial = false) {
                 this.x = (Math.random() - 0.5) * width * 3;
                 this.y = (Math.random() - 0.5) * height * 3;
-                // Distribute depth randomly on initialization, otherwise send to max depth
                 this.z = initial ? Math.random() * MAX_DEPTH : MAX_DEPTH;
                 this.px = centerX + (this.x / this.z) * FOCAL_LENGTH;
                 this.py = centerY + (this.y / this.z) * FOCAL_LENGTH;
             }
-
             update() {
                 this.px = centerX + (this.x / this.z) * FOCAL_LENGTH;
                 this.py = centerY + (this.y / this.z) * FOCAL_LENGTH;
-
                 this.z -= speed;
-
-                if (this.z <= 0) {
-                    this.reset(false);
-                }
+                if (this.z <= 0) this.reset(false);
             }
-
             draw() {
                 const sx = centerX + (this.x / this.z) * FOCAL_LENGTH;
                 const sy = centerY + (this.y / this.z) * FOCAL_LENGTH;
-
                 if (sx < 0 || sx > width || sy < 0 || sy > height) return;
-
                 const closeness = 1 - (this.z / MAX_DEPTH);
                 const alpha = Math.min(1, closeness * 1.5);
                 const strokeWidth = Math.max(0.5, closeness * 3);
@@ -240,41 +203,30 @@
         }
 
         let stars = [];
-
         function updateStarCount() {
             const newCount = parseInt(document.getElementById('countRange').value);
             STAR_COUNT = newCount;
-
-            while (stars.length > STAR_COUNT) {
-                stars.pop();
-            }
-            while (stars.length < STAR_COUNT) {
-                stars.push(new Star());
-            }
-
+            while (stars.length > STAR_COUNT) stars.pop();
+            while (stars.length < STAR_COUNT) stars.push(new Star());
             document.getElementById('countDisplay').textContent = STAR_COUNT;
         }
 
         function animate() {
             ctx.fillStyle = showTrails ? 'rgba(0, 0, 0, 0.25)' : '#000000';
             ctx.fillRect(0, 0, width, height);
-
             for (let star of stars) {
                 star.update();
                 star.draw();
             }
-
             requestAnimationFrame(animate);
         }
 
-        document.getElementById('speedRange').addEventListener('input', function(e) {
+        document.getElementById('speedRange').addEventListener('input', (e) => {
             speed = parseInt(e.target.value);
             document.getElementById('speedDisplay').textContent = speed + 'x';
         });
 
-        document.getElementById('countRange').addEventListener('input', function(e) {
-            updateStarCount();
-        });
+        document.getElementById('countRange').addEventListener('input', updateStarCount);
 
         const trailsToggle = document.getElementById('trailsToggle');
         trailsToggle.addEventListener('click', function() {
@@ -282,36 +234,178 @@
             this.classList.toggle('active');
         });
 
-        // Audio setup
-        const audio = new Audio('tng_engineering_hum.mp3');
-        audio.loop = true;
-        audio.volume = 0.3;
+        // --- Web Audio Architecture with Procedural Reverb & Chorus ---
+        let audioCtx = null;
+        let masterGain = null;
+        let reverbGainNode = null;
+        let chorusGainNode = null;
 
-        const soundToggle = document.createElement('div');
-        soundToggle.className = 'setting-group';
-        soundToggle.innerHTML = '<label for="soundToggle" style="color: rgba(255,255,255,0.7);">Sound</label> <div class="toggle" id="soundToggle"></div>';
-        document.querySelector('.settings').appendChild(soundToggle);
+        // Creates synthetic metallic room impulse response
+        function createReverbBuffer(ctx) {
+            const duration = 1.2; // 1.2s decay time
+            const sampleRate = ctx.sampleRate;
+            const length = sampleRate * duration;
+            const impulse = ctx.createBuffer(2, length, sampleRate);
+            const left = impulse.getChannelData(0);
+            const right = impulse.getChannelData(1);
 
-        const soundToggleEl = document.getElementById('soundToggle');
-        soundToggleEl.addEventListener('click', function() {
-            if (audio.paused) {
-                audio.play().then(() => {
-                    this.classList.add('active');
-                }).catch(() => {
-                    this.classList.remove('active');
-                });
-            } else {
-                audio.pause();
-                this.classList.remove('active');
+            for (let i = 0; i < length; i++) {
+                const decay = Math.exp(-i / (sampleRate * 0.15));
+                left[i] = (Math.random() * 2 - 1) * decay;
+                right[i] = (Math.random() * 2 - 1) * decay;
+            }
+            return impulse;
+        }
+
+        function initSynthesizer() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+            masterGain = audioCtx.createGain();
+            masterGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            masterGain.connect(audioCtx.destination);
+
+            const dryBus = audioCtx.createGain();
+            dryBus.gain.setValueAtTime(0.7, audioCtx.currentTime);
+            dryBus.connect(masterGain);
+
+            // 1. Reverb Engine (Convolver)
+            const convolver = audioCtx.createConvolver();
+            convolver.buffer = createReverbBuffer(audioCtx);
+
+            reverbGainNode = audioCtx.createGain();
+            const initRev = parseFloat(document.getElementById('reverbMixRange').value);
+            reverbGainNode.gain.setValueAtTime(initRev, audioCtx.currentTime);
+
+            convolver.connect(reverbGainNode);
+            reverbGainNode.connect(masterGain);
+
+            // 2. Chorus Engine (Modulated Delay)
+            const chorusDelay = audioCtx.createDelay();
+            chorusDelay.delayTime.setValueAtTime(0.025, audioCtx.currentTime); // 25ms delay base
+
+            const chorusLFO = audioCtx.createOscillator();
+            chorusLFO.frequency.setValueAtTime(0.3, audioCtx.currentTime); // 0.3Hz modulation speed
+
+            const chorusDepth = audioCtx.createGain();
+            chorusDepth.gain.setValueAtTime(0.003, audioCtx.currentTime); // 3ms delay swing
+
+            chorusLFO.connect(chorusDepth);
+            chorusDepth.connect(chorusDelay.delayTime);
+            chorusLFO.start();
+
+            chorusGainNode = audioCtx.createGain();
+            const initChorus = parseFloat(document.getElementById('chorusMixRange').value);
+            chorusGainNode.gain.setValueAtTime(initChorus, audioCtx.currentTime);
+
+            chorusDelay.connect(chorusGainNode);
+            chorusGainNode.connect(masterGain);
+
+            // Audio Core Generators
+            const synthOutputBus = audioCtx.createGain();
+            synthOutputBus.connect(dryBus);
+            synthOutputBus.connect(convolver);
+            synthOutputBus.connect(chorusDelay);
+
+            // Pink Noise Generation
+            const bufferSize = audioCtx.sampleRate * 4;
+            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                b0 = 0.99886 * b0 + white * 0.0555179;
+                b1 = 0.99332 * b1 + white * 0.0750759;
+                b2 = 0.96900 * b2 + white * 0.1538520;
+                b3 = 0.86650 * b3 + white * 0.3104856;
+                b4 = 0.55000 * b4 + white * 0.5329522;
+                b5 = -0.7616 * b5 - white * 0.0168980;
+                output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.08;
+                b6 = white * 0.115926;
+            }
+
+            const noiseSource = audioCtx.createBufferSource();
+            noiseSource.buffer = noiseBuffer;
+            noiseSource.loop = true;
+
+            const noiseFilter = audioCtx.createBiquadFilter();
+            noiseFilter.type = 'lowpass';
+            noiseFilter.frequency.setValueAtTime(130, audioCtx.currentTime);
+
+            noiseSource.connect(noiseFilter);
+            noiseFilter.connect(synthOutputBus);
+
+            // Sub-Bass & Thrum Oscillators
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            osc1.type = 'sine'; osc2.type = 'sine';
+            osc1.frequency.setValueAtTime(58, audioCtx.currentTime);
+            osc2.frequency.setValueAtTime(58.7, audioCtx.currentTime);
+
+            const subGain = audioCtx.createGain();
+            subGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            osc1.connect(subGain);
+            osc2.connect(subGain);
+            subGain.connect(synthOutputBus);
+
+            // Warp Pulse Generator
+            const pulseOsc = audioCtx.createOscillator();
+            pulseOsc.type = 'sine';
+            pulseOsc.frequency.setValueAtTime(78, audioCtx.currentTime);
+
+            const pulseGain = audioCtx.createGain();
+            pulseGain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+
+            const pulseLFO = audioCtx.createOscillator();
+            pulseLFO.frequency.setValueAtTime(0.77, audioCtx.currentTime);
+
+            const pulseLFODepth = audioCtx.createGain();
+            pulseLFODepth.gain.setValueAtTime(0.1, audioCtx.currentTime);
+
+            pulseLFO.connect(pulseLFODepth);
+            pulseLFODepth.connect(pulseGain.gain);
+
+            pulseOsc.connect(pulseGain);
+            pulseGain.connect(synthOutputBus);
+
+            noiseSource.start();
+            osc1.start();
+            osc2.start();
+            pulseOsc.start();
+            pulseLFO.start();
+        }
+
+        // Live Audio Controls
+        document.getElementById('reverbMixRange').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('reverbDisplay').textContent = Math.round(val * 100) + '%';
+            if (audioCtx && reverbGainNode) {
+                reverbGainNode.gain.setValueAtTime(val, audioCtx.currentTime);
             }
         });
 
-        audio.addEventListener('pause', () => {
-            soundToggleEl.classList.remove('active');
+        document.getElementById('chorusMixRange').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('chorusDisplay').textContent = Math.round(val * 100) + '%';
+            if (audioCtx && chorusGainNode) {
+                chorusGainNode.gain.setValueAtTime(val, audioCtx.currentTime);
+            }
         });
 
-        audio.addEventListener('play', () => {
-            soundToggleEl.classList.add('active');
+        const soundToggleEl = document.getElementById('soundToggle');
+        soundToggleEl.addEventListener('click', async function() {
+            if (!audioCtx) {
+                initSynthesizer();
+                this.classList.add('active');
+                return;
+            }
+
+            if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+                this.classList.add('active');
+            } else if (audioCtx.state === 'running') {
+                await audioCtx.suspend();
+                this.classList.remove('active');
+            }
         });
 
         updateStarCount();

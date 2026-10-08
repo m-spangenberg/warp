@@ -45,7 +45,7 @@
             align-items: center;
             flex-wrap: wrap;
             justify-content: center;
-            max-width: 90vw;
+            max-width: 92vw;
             transition: opacity 0.3s ease, transform 0.3s ease;
             opacity: 0.05;
         }
@@ -130,10 +130,16 @@
             <div class="toggle" id="trailsToggle"></div>
         </div>
 
-        <!-- Audio Toggle & Effects Controls -->
+        <!-- Audio Toggle & Spatial Controls -->
         <div class="setting-group">
             <label for="soundToggle">Sound</label>
             <div class="toggle" id="soundToggle"></div>
+        </div>
+
+        <div class="setting-group">
+            <label for="stereoWidthRange">Sound Width</label>
+            <input type="range" id="stereoWidthRange" min="0" max="1" step="0.05" value="0.65">
+            <span class="display-val" id="widthDisplay">65%</span>
         </div>
 
         <div class="setting-group">
@@ -146,6 +152,30 @@
             <label for="chorusMixRange">Chorus Motion</label>
             <input type="range" id="chorusMixRange" min="0" max="1" step="0.05" value="0.4">
             <span class="display-val" id="chorusDisplay">40%</span>
+        </div>
+
+        <!-- Industrial Cooling Layer Controls -->
+        <div class="setting-group">
+            <label for="hiFreqToggle">Hi-Layer</label>
+            <div class="toggle" id="hiFreqToggle"></div>
+        </div>
+
+        <div class="setting-group">
+            <label for="hiVolRange">Hi Vol</label>
+            <input type="range" id="hiVolRange" min="0" max="1" step="0.05" value="0.35">
+            <span class="display-val" id="hiVolDisplay">35%</span>
+        </div>
+
+        <div class="setting-group">
+            <label for="hiPitchRange">Hi Pitch</label>
+            <input type="range" id="hiPitchRange" min="0.5" max="3.0" step="0.05" value="1.0">
+            <span class="display-val" id="hiPitchDisplay">1.0x</span>
+        </div>
+
+        <div class="setting-group">
+            <label for="hiSpeedRange">Hi Speed</label>
+            <input type="range" id="hiSpeedRange" min="0.1" max="4.0" step="0.1" value="0.6">
+            <span class="display-val" id="hiSpeedDisplay">0.6 Hz</span>
         </div>
     </div>
 
@@ -234,15 +264,26 @@
             this.classList.toggle('active');
         });
 
-        // --- Web Audio Architecture with Procedural Reverb & Chorus ---
+        // --- Audio Architecture ---
         let audioCtx = null;
         let masterGain = null;
         let reverbGainNode = null;
         let chorusGainNode = null;
 
-        // Creates synthetic metallic room impulse response
+        // Stereo Spatializer (Width Engine)
+        let midGainNode = null;
+        let sideGainNode = null;
+
+        // Industrial Cooling Ring Layer
+        let hiFreqEnabled = false;
+        let hiFreqGain = null;
+        let hiFreqBaseVol = 0.35;
+        let hiDampingFilter = null;
+        let hiResFilter1 = null, hiResFilter2 = null, hiResFilter3 = null;
+        let hiOsc1 = null, hiOsc2 = null, hiLFO = null;
+
         function createReverbBuffer(ctx) {
-            const duration = 1.2; // 1.2s decay time
+            const duration = 1.2;
             const sampleRate = ctx.sampleRate;
             const length = sampleRate * duration;
             const impulse = ctx.createBuffer(2, length, sampleRate);
@@ -268,7 +309,7 @@
             dryBus.gain.setValueAtTime(0.7, audioCtx.currentTime);
             dryBus.connect(masterGain);
 
-            // 1. Reverb Engine (Convolver)
+            // Reverb Engine
             const convolver = audioCtx.createConvolver();
             convolver.buffer = createReverbBuffer(audioCtx);
 
@@ -279,15 +320,15 @@
             convolver.connect(reverbGainNode);
             reverbGainNode.connect(masterGain);
 
-            // 2. Chorus Engine (Modulated Delay)
+            // Chorus Engine
             const chorusDelay = audioCtx.createDelay();
-            chorusDelay.delayTime.setValueAtTime(0.025, audioCtx.currentTime); // 25ms delay base
+            chorusDelay.delayTime.setValueAtTime(0.025, audioCtx.currentTime);
 
             const chorusLFO = audioCtx.createOscillator();
-            chorusLFO.frequency.setValueAtTime(0.3, audioCtx.currentTime); // 0.3Hz modulation speed
+            chorusLFO.frequency.setValueAtTime(0.3, audioCtx.currentTime);
 
             const chorusDepth = audioCtx.createGain();
-            chorusDepth.gain.setValueAtTime(0.003, audioCtx.currentTime); // 3ms delay swing
+            chorusDepth.gain.setValueAtTime(0.003, audioCtx.currentTime);
 
             chorusLFO.connect(chorusDepth);
             chorusDepth.connect(chorusDelay.delayTime);
@@ -300,13 +341,45 @@
             chorusDelay.connect(chorusGainNode);
             chorusGainNode.connect(masterGain);
 
-            // Audio Core Generators
-            const synthOutputBus = audioCtx.createGain();
-            synthOutputBus.connect(dryBus);
-            synthOutputBus.connect(convolver);
-            synthOutputBus.connect(chorusDelay);
+            // --- Mid-Side Stereo Widening Matrix ---
+            const synthOutputBus = audioCtx.createGain(); // Summed synth input
 
-            // Pink Noise Generation
+            const widthVal = parseFloat(document.getElementById('stereoWidthRange').value);
+            midGainNode = audioCtx.createGain();
+            midGainNode.gain.setValueAtTime(1 - widthVal * 0.25, audioCtx.currentTime);
+
+            const sideDelay = audioCtx.createDelay();
+            sideDelay.delayTime.setValueAtTime(0.014, audioCtx.currentTime); // 14ms Haas stereo spread
+
+            const sideAllpass = audioCtx.createBiquadFilter();
+            sideAllpass.type = 'allpass';
+            sideAllpass.frequency.setValueAtTime(650, audioCtx.currentTime);
+
+            sideGainNode = audioCtx.createGain();
+            sideGainNode.gain.setValueAtTime(widthVal * 0.85, audioCtx.currentTime);
+
+            const sideInverter = audioCtx.createGain();
+            sideInverter.gain.setValueAtTime(-1, audioCtx.currentTime);
+
+            const spatialMerger = audioCtx.createChannelMerger(2);
+
+            synthOutputBus.connect(midGainNode);
+            synthOutputBus.connect(sideDelay);
+            sideDelay.connect(sideAllpass);
+            sideAllpass.connect(sideGainNode);
+
+            midGainNode.connect(spatialMerger, 0, 0); // Left Mid
+            midGainNode.connect(spatialMerger, 0, 1); // Right Mid
+
+            sideGainNode.connect(spatialMerger, 0, 0); // Left +Side
+            sideGainNode.connect(sideInverter);
+            sideInverter.connect(spatialMerger, 0, 1); // Right -Side
+
+            spatialMerger.connect(dryBus);
+            spatialMerger.connect(convolver);
+            spatialMerger.connect(chorusDelay);
+
+            // Noise Buffer Generator
             const bufferSize = audioCtx.sampleRate * 4;
             const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
             const output = noiseBuffer.getChannelData(0);
@@ -323,6 +396,7 @@
                 b6 = white * 0.115926;
             }
 
+            // --- Core Engine Hum ---
             const noiseSource = audioCtx.createBufferSource();
             noiseSource.buffer = noiseBuffer;
             noiseSource.loop = true;
@@ -334,7 +408,6 @@
             noiseSource.connect(noiseFilter);
             noiseFilter.connect(synthOutputBus);
 
-            // Sub-Bass & Thrum Oscillators
             const osc1 = audioCtx.createOscillator();
             const osc2 = audioCtx.createOscillator();
             osc1.type = 'sine'; osc2.type = 'sine';
@@ -347,7 +420,6 @@
             osc2.connect(subGain);
             subGain.connect(synthOutputBus);
 
-            // Warp Pulse Generator
             const pulseOsc = audioCtx.createOscillator();
             pulseOsc.type = 'sine';
             pulseOsc.frequency.setValueAtTime(78, audioCtx.currentTime);
@@ -372,9 +444,92 @@
             osc2.start();
             pulseOsc.start();
             pulseLFO.start();
+
+            // --- Muffled Industrial Cooling Layer ---
+            hiFreqGain = audioCtx.createGain();
+            hiFreqBaseVol = parseFloat(document.getElementById('hiVolRange').value);
+            hiFreqGain.gain.setValueAtTime(hiFreqEnabled ? hiFreqBaseVol : 0, audioCtx.currentTime);
+
+            hiDampingFilter = audioCtx.createBiquadFilter();
+            hiDampingFilter.type = 'lowpass';
+            hiDampingFilter.frequency.setValueAtTime(1200, audioCtx.currentTime);
+
+            hiFreqGain.connect(hiDampingFilter);
+            hiDampingFilter.connect(synthOutputBus);
+
+            const pVal = parseFloat(document.getElementById('hiPitchRange').value);
+            const sVal = parseFloat(document.getElementById('hiSpeedRange').value);
+
+            const hiNoiseSource = audioCtx.createBufferSource();
+            hiNoiseSource.buffer = noiseBuffer;
+            hiNoiseSource.loop = true;
+
+            hiResFilter1 = audioCtx.createBiquadFilter();
+            hiResFilter1.type = 'bandpass';
+            hiResFilter1.Q.setValueAtTime(22, audioCtx.currentTime);
+
+            hiResFilter2 = audioCtx.createBiquadFilter();
+            hiResFilter2.type = 'bandpass';
+            hiResFilter2.Q.setValueAtTime(26, audioCtx.currentTime);
+
+            hiResFilter3 = audioCtx.createBiquadFilter();
+            hiResFilter3.type = 'bandpass';
+            hiResFilter3.Q.setValueAtTime(18, audioCtx.currentTime);
+
+            hiResFilter1.frequency.setValueAtTime(380 * pVal, audioCtx.currentTime);
+            hiResFilter2.frequency.setValueAtTime(740 * pVal, audioCtx.currentTime);
+            hiResFilter3.frequency.setValueAtTime(1290 * pVal, audioCtx.currentTime);
+
+            hiNoiseSource.connect(hiResFilter1);
+            hiNoiseSource.connect(hiResFilter2);
+            hiNoiseSource.connect(hiResFilter3);
+
+            hiResFilter1.connect(hiFreqGain);
+            hiResFilter2.connect(hiFreqGain);
+            hiResFilter3.connect(hiFreqGain);
+
+            hiOsc1 = audioCtx.createOscillator();
+            hiOsc2 = audioCtx.createOscillator();
+            hiOsc1.type = 'triangle';
+            hiOsc2.type = 'triangle';
+
+            hiOsc1.frequency.setValueAtTime(260 * pVal, audioCtx.currentTime);
+            hiOsc2.frequency.setValueAtTime(415 * pVal, audioCtx.currentTime);
+
+            const hiOscGain = audioCtx.createGain();
+            hiOscGain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+
+            hiOsc1.connect(hiOscGain);
+            hiOsc2.connect(hiOscGain);
+
+            hiLFO = audioCtx.createOscillator();
+            hiLFO.frequency.setValueAtTime(sVal, audioCtx.currentTime);
+
+            const hiLFODepth = audioCtx.createGain();
+            hiLFODepth.gain.setValueAtTime(0.04, audioCtx.currentTime);
+
+            hiLFO.connect(hiLFODepth);
+            hiLFODepth.connect(hiOscGain.gain);
+
+            hiOscGain.connect(hiFreqGain);
+
+            hiNoiseSource.start();
+            hiOsc1.start();
+            hiOsc2.start();
+            hiLFO.start();
         }
 
-        // Live Audio Controls
+        // --- Dynamic Control Listeners ---
+        document.getElementById('stereoWidthRange').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('widthDisplay').textContent = Math.round(val * 100) + '%';
+            if (audioCtx && midGainNode && sideGainNode) {
+                const now = audioCtx.currentTime;
+                midGainNode.gain.setValueAtTime(1 - val * 0.25, now);
+                sideGainNode.gain.setValueAtTime(val * 0.85, now);
+            }
+        });
+
         document.getElementById('reverbMixRange').addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             document.getElementById('reverbDisplay').textContent = Math.round(val * 100) + '%';
@@ -388,6 +543,46 @@
             document.getElementById('chorusDisplay').textContent = Math.round(val * 100) + '%';
             if (audioCtx && chorusGainNode) {
                 chorusGainNode.gain.setValueAtTime(val, audioCtx.currentTime);
+            }
+        });
+
+        const hiFreqToggleEl = document.getElementById('hiFreqToggle');
+        hiFreqToggleEl.addEventListener('click', function() {
+            hiFreqEnabled = !hiFreqEnabled;
+            this.classList.toggle('active');
+            if (audioCtx && hiFreqGain) {
+                hiFreqGain.gain.setValueAtTime(hiFreqEnabled ? hiFreqBaseVol : 0, audioCtx.currentTime);
+            }
+        });
+
+        document.getElementById('hiVolRange').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            hiFreqBaseVol = val;
+            document.getElementById('hiVolDisplay').textContent = Math.round(val * 100) + '%';
+            if (audioCtx && hiFreqGain && hiFreqEnabled) {
+                hiFreqGain.gain.setValueAtTime(val, audioCtx.currentTime);
+            }
+        });
+
+        document.getElementById('hiPitchRange').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('hiPitchDisplay').textContent = val.toFixed(2) + 'x';
+            if (audioCtx && hiResFilter1) {
+                const now = audioCtx.currentTime;
+                hiResFilter1.frequency.setValueAtTime(380 * val, now);
+                hiResFilter2.frequency.setValueAtTime(740 * val, now);
+                hiResFilter3.frequency.setValueAtTime(1290 * val, now);
+                if (hiOsc1) hiOsc1.frequency.setValueAtTime(260 * val, now);
+                if (hiOsc2) hiOsc2.frequency.setValueAtTime(415 * val, now);
+                if (hiDampingFilter) hiDampingFilter.frequency.setValueAtTime(1200 * Math.min(1.5, val), now);
+            }
+        });
+
+        document.getElementById('hiSpeedRange').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('hiSpeedDisplay').textContent = val.toFixed(1) + ' Hz';
+            if (audioCtx && hiLFO) {
+                hiLFO.frequency.setValueAtTime(val, audioCtx.currentTime);
             }
         });
 

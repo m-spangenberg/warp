@@ -138,20 +138,20 @@
 
         <div class="setting-group">
             <label for="stereoWidthRange">Sound Width</label>
-            <input type="range" id="stereoWidthRange" min="0" max="1" step="0.05" value="0.65">
-            <span class="display-val" id="widthDisplay">65%</span>
+            <input type="range" id="stereoWidthRange" min="0" max="1" step="0.05" value="0.80">
+            <span class="display-val" id="widthDisplay">80%</span>
         </div>
 
         <div class="setting-group">
             <label for="reverbMixRange">Reverb Room</label>
-            <input type="range" id="reverbMixRange" min="0" max="1" step="0.05" value="0.35">
-            <span class="display-val" id="reverbDisplay">35%</span>
+            <input type="range" id="reverbMixRange" min="0" max="1" step="0.05" value="1.0">
+            <span class="display-val" id="reverbDisplay">100%</span>
         </div>
 
         <div class="setting-group">
             <label for="chorusMixRange">Chorus Motion</label>
-            <input type="range" id="chorusMixRange" min="0" max="1" step="0.05" value="0.4">
-            <span class="display-val" id="chorusDisplay">40%</span>
+            <input type="range" id="chorusMixRange" min="0" max="1" step="0.05" value="0.80">
+            <span class="display-val" id="chorusDisplay">80%</span>
         </div>
 
         <!-- Industrial Cooling Layer Controls -->
@@ -162,20 +162,20 @@
 
         <div class="setting-group">
             <label for="hiVolRange">Hi Vol</label>
-            <input type="range" id="hiVolRange" min="0" max="1" step="0.05" value="0.35">
-            <span class="display-val" id="hiVolDisplay">35%</span>
+            <input type="range" id="hiVolRange" min="0" max="1" step="0.05" value="0.25">
+            <span class="display-val" id="hiVolDisplay">25%</span>
         </div>
 
         <div class="setting-group">
             <label for="hiPitchRange">Hi Pitch</label>
-            <input type="range" id="hiPitchRange" min="0.5" max="3.0" step="0.05" value="1.0">
-            <span class="display-val" id="hiPitchDisplay">1.0x</span>
+            <input type="range" id="hiPitchRange" min="0.5" max="3.0" step="0.05" value="0.50">
+            <span class="display-val" id="hiPitchDisplay">0.50x</span>
         </div>
 
         <div class="setting-group">
             <label for="hiSpeedRange">Hi Speed</label>
-            <input type="range" id="hiSpeedRange" min="0.1" max="4.0" step="0.1" value="0.6">
-            <span class="display-val" id="hiSpeedDisplay">0.6 Hz</span>
+            <input type="range" id="hiSpeedRange" min="0.1" max="4.0" step="0.1" value="0.1">
+            <span class="display-val" id="hiSpeedDisplay">0.1 Hz</span>
         </div>
     </div>
 
@@ -270,14 +270,14 @@
         let reverbGainNode = null;
         let chorusGainNode = null;
 
-        // Stereo Spatializer (Width Engine)
+        // Stereo Spatializer
         let midGainNode = null;
         let sideGainNode = null;
 
         // Industrial Cooling Ring Layer
         let hiFreqEnabled = false;
         let hiFreqGain = null;
-        let hiFreqBaseVol = 0.35;
+        let hiFreqBaseVol = 0.25;
         let hiDampingFilter = null;
         let hiResFilter1 = null, hiResFilter2 = null, hiResFilter3 = null;
         let hiOsc1 = null, hiOsc2 = null, hiLFO = null;
@@ -342,14 +342,14 @@
             chorusGainNode.connect(masterGain);
 
             // --- Mid-Side Stereo Widening Matrix ---
-            const synthOutputBus = audioCtx.createGain(); // Summed synth input
+            const synthOutputBus = audioCtx.createGain();
 
             const widthVal = parseFloat(document.getElementById('stereoWidthRange').value);
             midGainNode = audioCtx.createGain();
             midGainNode.gain.setValueAtTime(1 - widthVal * 0.25, audioCtx.currentTime);
 
             const sideDelay = audioCtx.createDelay();
-            sideDelay.delayTime.setValueAtTime(0.014, audioCtx.currentTime); // 14ms Haas stereo spread
+            sideDelay.delayTime.setValueAtTime(0.014, audioCtx.currentTime);
 
             const sideAllpass = audioCtx.createBiquadFilter();
             sideAllpass.type = 'allpass';
@@ -368,12 +368,12 @@
             sideDelay.connect(sideAllpass);
             sideAllpass.connect(sideGainNode);
 
-            midGainNode.connect(spatialMerger, 0, 0); // Left Mid
-            midGainNode.connect(spatialMerger, 0, 1); // Right Mid
+            midGainNode.connect(spatialMerger, 0, 0);
+            midGainNode.connect(spatialMerger, 0, 1);
 
-            sideGainNode.connect(spatialMerger, 0, 0); // Left +Side
+            sideGainNode.connect(spatialMerger, 0, 0);
             sideGainNode.connect(sideInverter);
-            sideInverter.connect(spatialMerger, 0, 1); // Right -Side
+            sideInverter.connect(spatialMerger, 0, 1);
 
             spatialMerger.connect(dryBus);
             spatialMerger.connect(convolver);
@@ -444,6 +444,42 @@
             osc2.start();
             pulseOsc.start();
             pulseLFO.start();
+
+            // --- Undulating Low-Wind Layer (Upper Bass Air Sweeps) ---
+            const windNoiseSource = audioCtx.createBufferSource();
+            windNoiseSource.buffer = noiseBuffer;
+            windNoiseSource.loop = true;
+
+            const windFilter = audioCtx.createBiquadFilter();
+            windFilter.type = 'bandpass';
+            windFilter.frequency.setValueAtTime(160, audioCtx.currentTime);
+            windFilter.Q.setValueAtTime(1.8, audioCtx.currentTime);
+
+            const windGain = audioCtx.createGain();
+            windGain.gain.setValueAtTime(0.28, audioCtx.currentTime);
+
+            const windLFO = audioCtx.createOscillator();
+            windLFO.type = 'sine';
+            windLFO.frequency.setValueAtTime(0.13, audioCtx.currentTime); // Out-of-phase rate (~7.7s cycle)
+
+            const windFilterMod = audioCtx.createGain();
+            windFilterMod.gain.setValueAtTime(75, audioCtx.currentTime); // Cutoff sweeps 85 Hz - 235 Hz
+
+            const windGainMod = audioCtx.createGain();
+            windGainMod.gain.setValueAtTime(0.12, audioCtx.currentTime);
+
+            windLFO.connect(windFilterMod);
+            windFilterMod.connect(windFilter.frequency);
+
+            windLFO.connect(windGainMod);
+            windGainMod.connect(windGain.gain);
+
+            windNoiseSource.connect(windFilter);
+            windFilter.connect(windGain);
+            windGain.connect(synthOutputBus);
+
+            windNoiseSource.start();
+            windLFO.start();
 
             // --- Muffled Industrial Cooling Layer ---
             hiFreqGain = audioCtx.createGain();

@@ -1,0 +1,47 @@
+name: Bug Report (FIX)
+description: Report a bug or error to help us fix it.
+title: "[BUG]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue! Small bug fixes can be submitted directly via PR (`FIX:`), but opening an issue helps track the problem.
+
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe the unexpected behavior...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this issue?
+      placeholder: |
+        1. Open '...'
+        2. Change '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment & Context
+      description: Browser and device details, including whether the app is installed (standalone) or running in a tab.
+      placeholder: e.g., Chrome 131 on Windows 11, Safari 17.4 on iPhone (installed), Firefox 132 on Ubuntu
+    validations:
+      required: false

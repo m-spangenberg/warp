@@ -1,0 +1,36 @@
+name: Feature Proposal (FEAT)
+description: Propose a new feature or architectural change for discussion.
+title: "[FEAT]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing a feature! As per our contributing guidelines, all `FEAT` PRs require prior discussion in an issue before code is written.
+
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: Feature Description
+      description: What feature or architectural change would you like to see?
+      placeholder: Describe the proposal clearly and concisely.
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: Problem or Use Case
+      description: What problem does this solve? Why is this necessary for the project?
+      placeholder: I am trying to... but currently...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution or Implementation
+      description: Describe how you envision this being implemented (if applicable).
+      placeholder: Outline your idea or potential approach.
+    validations:
+      required: false

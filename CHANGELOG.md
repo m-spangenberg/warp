@@ -2,6 +2,12 @@
 
 All notable changes to Warp are documented in this file. Each version lists its changes by type: Added, Changed, Deprecated, Removed, Fixed, Security.
 
+## v0.2.1
+
+- Fixed audio crackling and stuttering on iOS: the AudioContext is now pinned to a fixed 44.1 kHz sample rate (falling back to the device default when unsupported), so mid-session hardware rate changes no longer force an internal resample of the whole graph.
+- Fixed iOS Web Audio dropouts at start: on iOS, a fraction of a second of silence now plays through a native HTML5 audio element before the context resumes, forcing the media engine into its high-performance state.
+- Fixed sound stopping for good after an iOS interruption (incoming call, Siri, Control Center, app switch): context state changes are now monitored, and a one-shot resume is armed on the next user touch whenever the user still has sound on.
+
 ## v0.2.0
 
 - Added a Rear View toggle to the control panel: the camera faces away from the direction of travel, so stars enter from the edge of the screen and streak inward toward the vanishing point (default remains the front view). The view mode is persisted with the other settings and restored on launch.

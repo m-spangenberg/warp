@@ -487,7 +487,7 @@
 
     <script>
         // Release version - keep in sync with CHANGELOG.md
-        const APP_VERSION = '0.2.0';
+        const APP_VERSION = '0.2.1';
 
         const canvas = document.getElementById('warpCanvas');
         const ctx = canvas.getContext('2d');
@@ -666,6 +666,72 @@
         let hiDampingFilter = null;
         let hiResFilter1 = null, hiResFilter2 = null, hiResFilter3 = null;
         let hiOsc1 = null, hiOsc2 = null, hiLFO = null;
+
+        // --- iOS Audio: kickstart + interruption recovery ---
+        //
+        // iOS Safari keeps the Web Audio render thread at low priority until
+        // a native HTML5 media element claims the output hardware, and it
+        // yanks the AudioContext whenever system audio takes over (call,
+        // Siri, Control Center, app switch). The helpers below keep the
+        // graph running through both.
+
+        const isIOS = () =>
+            /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+        // A fraction of a second of pure silence. Playing it through a
+        // native <audio> element forces the iOS media engine into its
+        // high-performance state, which removes the Web Audio crackle.
+        const SILENT_KICKSTART =
+            'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==';
+        let kickstartAudio = null;
+
+        function kickstartIOSAudio() {
+            if (!kickstartAudio) kickstartAudio = new Audio(SILENT_KICKSTART);
+            kickstartAudio.currentTime = 0;
+            return kickstartAudio.play().catch((err) => {
+                console.log('Audio kickstart failed:', err);
+            });
+        }
+
+        // Bring the context back to running. On iOS the silent kickstart
+        // runs first so the hardware is warm when the graph resumes. Safe
+        // to call outside a user gesture: where the browser refuses (iOS
+        // after an interruption) the one-shot armer below picks it up on
+        // the next touch.
+        async function ensureAudioRunning() {
+            if (!audioCtx || audioCtx.state === 'running') return;
+            if (isIOS()) await kickstartIOSAudio();
+            try { await audioCtx.resume(); } catch (err) { /* next gesture */ }
+        }
+
+        // iOS only resumes a suspended/interrupted context inside a user
+        // gesture, so arm one-shot listeners whenever it drops out from
+        // under us while the user still has sound switched on.
+        const RESUME_EVENTS = ['pointerdown', 'touchend', 'click', 'keydown'];
+        let resumeArmed = false;
+
+        function armOneShotResume() {
+            if (resumeArmed || !audioCtx || audioCtx.state === 'running') return;
+            if (!soundToggleEl.classList.contains('active')) return;
+            resumeArmed = true;
+            const handler = () => {
+                resumeArmed = false;
+                RESUME_EVENTS.forEach((ev) => window.removeEventListener(ev, handler));
+                if (!soundToggleEl.classList.contains('active')) return; // muted in the meantime
+                ensureAudioRunning();
+            };
+            RESUME_EVENTS.forEach((ev) => window.addEventListener(ev, handler));
+        }
+
+        // Single entry point for "sound should be on now" (gesture handlers).
+        function startSynthesizer() {
+            if (!audioCtx) {
+                initSynthesizer();
+            } else if (audioCtx.state !== 'running') {
+                ensureAudioRunning();
+            }
+        }
 
         function createReverbBuffer(ctx) {
             const duration = 1.2;
@@ -915,11 +981,35 @@
         }
 
         function initSynthesizer() {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            // iOS Safari follows the hardware sample rate, which can flip
+            // between 44.1 and 48 kHz mid-session (incoming call,
+            // Bluetooth, screen state). Pinning the context to one rate
+            // avoids the internal resampling that produces the crackle;
+            // fall back to the device default if the browser rejects it.
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            try {
+                audioCtx = new AudioContextClass({ sampleRate: 44100 });
+            } catch (err) {
+                audioCtx = new AudioContextClass();
+            }
 
             // Some mobile browsers (notably iOS Safari) create the context
             // suspended even inside a user gesture - start it right away.
-            if (audioCtx.state === 'suspended') audioCtx.resume();
+            ensureAudioRunning();
+
+            // iOS yanks the context when system audio takes over (call,
+            // Siri, Control Center, app switch). A delayed blind resume
+            // sometimes succeeds; the gesture-gated one always does, so do
+            // both whenever the user still has sound on.
+            audioCtx.onstatechange = () => {
+                if (audioCtx.state !== 'interrupted' && audioCtx.state !== 'suspended') return;
+                armOneShotResume();
+                setTimeout(() => {
+                    if (audioCtx.state === 'interrupted' || audioCtx.state === 'suspended') {
+                        ensureAudioRunning();
+                    }
+                }, 1000);
+            };
 
             masterGain = audioCtx.createGain();
             masterGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
@@ -1099,11 +1189,7 @@
             this.setAttribute('aria-checked', String(turningOn));
 
             if (turningOn) {
-                if (!audioCtx) {
-                    initSynthesizer();
-                } else if (audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
+                startSynthesizer();
             } else if (audioCtx && audioCtx.state === 'running') {
                 audioCtx.suspend();
             }
@@ -1176,11 +1262,7 @@
             if (document.getElementById('soundToggle').classList.contains('active')) {
                 const START_EVENTS = ['pointerdown', 'touchend', 'click', 'keydown'];
                 const startAudio = () => {
-                    if (!audioCtx) {
-                        initSynthesizer();
-                    } else if (audioCtx.state === 'suspended') {
-                        audioCtx.resume();
-                    }
+                    startSynthesizer();
                     START_EVENTS.forEach((ev) => window.removeEventListener(ev, startAudio));
                 };
                 START_EVENTS.forEach((ev) => window.addEventListener(ev, startAudio));
@@ -1301,10 +1383,6 @@
             window.matchMedia('(display-mode: standalone)').matches ||
             window.matchMedia('(display-mode: window-controls-overlay)').matches ||
             window.navigator.standalone === true;
-
-        const isIOS = () =>
-            /iphone|ipad|ipod/i.test(navigator.userAgent) ||
-            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
         const wasDismissed = () => {
             try { return localStorage.getItem(CTA_DISMISSED_KEY) === '1'; } catch (e) { return true; }

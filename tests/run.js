@@ -26,7 +26,7 @@ const MIME = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
-const ALL_SUITES = ['test-core.js', 'test-effects.js', 'test-settings.js'];
+const ALL_SUITES = ['test-core.js', 'test-effects.js', 'test-settings.js', 'test-soundbank.js'];
 
 function createServer() {
   return http.createServer((req, res) => {

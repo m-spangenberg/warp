@@ -31,6 +31,34 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Warp">
     <style>
+        /* Theme accents. `body.borg` (the hidden easter egg) overrides the
+           whole set to green - every glow, border, and button picks it up. */
+        :root {
+            --glow-near: rgba(130, 180, 255, 0.55);
+            --glow-far: rgba(70, 130, 255, 0.7);
+            --accent-line: rgba(130, 180, 255, 0.35);
+            --accent-shadow: rgba(70, 130, 255, 0.28);
+            --accent-faint: rgba(130, 180, 255, 0.25);
+            --accent-scroll: rgba(130, 180, 255, 0.3);
+            --accent-focus: rgba(130, 180, 255, 0.7);
+            --accent-text: rgba(200, 220, 255, 0.75);
+            --btn-grad-a: #8ab8ff;
+            --btn-grad-b: #4a7dff;
+        }
+
+        body.borg {
+            --glow-near: rgba(140, 255, 170, 0.55);
+            --glow-far: rgba(60, 220, 130, 0.7);
+            --accent-line: rgba(140, 255, 170, 0.35);
+            --accent-shadow: rgba(60, 220, 130, 0.28);
+            --accent-faint: rgba(140, 255, 170, 0.25);
+            --accent-scroll: rgba(140, 255, 170, 0.3);
+            --accent-focus: rgba(140, 255, 170, 0.7);
+            --accent-text: rgba(200, 255, 220, 0.75);
+            --btn-grad-a: #9dffbe;
+            --btn-grad-b: #3ddc84;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -55,7 +83,7 @@
             height: 100vh;
         }
 
-        /* Blue edge glow (slider-controlled) - same hues as the install CTA's glow. */
+        /* Edge glow (slider-controlled) - same hues as the install CTA's glow. */
         .edge-glow {
             position: fixed;
             inset: 0;
@@ -63,8 +91,9 @@
             pointer-events: none;
             opacity: 0;
             box-shadow:
-                inset 0 0 60px 12px rgba(130, 180, 255, 0.55),
-                inset 0 0 190px 55px rgba(70, 130, 255, 0.7);
+                inset 0 0 60px 12px var(--glow-near),
+                inset 0 0 190px 55px var(--glow-far);
+            transition: box-shadow 0.8s ease;
         }
 
         /* Centered, scrollable control sheet - the same layout on desktop
@@ -93,7 +122,7 @@
             opacity: 0;
             pointer-events: none;
             scrollbar-width: thin;
-            scrollbar-color: rgba(130, 180, 255, 0.3) transparent;
+            scrollbar-color: var(--accent-scroll) transparent;
         }
 
         .settings::-webkit-scrollbar {
@@ -101,17 +130,17 @@
         }
 
         .settings::-webkit-scrollbar-thumb {
-            background: rgba(130, 180, 255, 0.3);
+            background: var(--accent-scroll);
             border-radius: 2px;
         }
 
         /* Open state - toggled from the tiny icon in the top-right.
-           Same blue glow as the install CTA. */
+           Same glow as the install CTA. */
         .settings.open {
             opacity: 1;
             pointer-events: auto;
-            border-color: rgba(130, 180, 255, 0.35);
-            box-shadow: 0 10px 34px rgba(70, 130, 255, 0.28);
+            border-color: var(--accent-line);
+            box-shadow: 0 10px 34px var(--accent-shadow);
         }
 
         .settings-section {
@@ -125,7 +154,7 @@
             width: auto;
             height: 1px;
             margin: 0.1rem 0;
-            background: rgba(130, 180, 255, 0.25);
+            background: var(--accent-faint);
         }
 
         .settings-meta {
@@ -160,14 +189,16 @@
            as the close control. */
         body.panel-open .panel-toggle {
             opacity: 1;
-            border-color: rgba(130, 180, 255, 0.35);
-            box-shadow: 0 10px 34px rgba(70, 130, 255, 0.28);
+            border-color: var(--accent-line);
+            box-shadow: 0 10px 34px var(--accent-shadow);
         }
 
         .toggle:focus-visible,
         .reset-btn:focus-visible,
-        .panel-toggle:focus-visible {
-            outline: 2px solid rgba(130, 180, 255, 0.7);
+        .panel-toggle:focus-visible,
+        .chip:focus-visible,
+        .layer-chev:focus-visible {
+            outline: 2px solid var(--accent-focus);
             outline-offset: 2px;
         }
 
@@ -212,7 +243,7 @@
 
         .reset-btn:hover {
             color: #fff;
-            border-color: rgba(130, 180, 255, 0.5);
+            border-color: var(--accent-focus);
         }
 
         .version-tag {
@@ -242,6 +273,7 @@
             position: relative;
             cursor: pointer;
             transition: background 0.3s;
+            flex-shrink: 0;
         }
 
         .toggle::after {
@@ -262,6 +294,128 @@
 
         .toggle.active::after {
             left: 22px;
+        }
+
+        /* --- Warp factor presets (chip row) --- */
+        .chip-row {
+            flex: 1;
+            display: flex;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            font-size: 0.72rem;
+            padding: 0.28rem 0.6rem;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 999px;
+            background: none;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: color 0.2s, border-color 0.2s, background 0.2s, box-shadow 0.2s;
+        }
+
+        .chip:hover {
+            color: #fff;
+            border-color: var(--accent-focus);
+        }
+
+        .chip.active {
+            color: #fff;
+            border-color: var(--accent-focus);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 10px var(--accent-shadow);
+        }
+
+        /* --- Sound layers (auto-generated from the sound bank) --- */
+        .layer-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .layer-row {
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .layer-head {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.5rem 0.6rem;
+        }
+
+        .layer-label {
+            flex: 1;
+            font-size: 0.85rem;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .layer-chev {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.75rem;
+            line-height: 1;
+            padding: 0.3rem 0.35rem;
+            cursor: pointer;
+            transition: transform 0.2s, color 0.2s;
+        }
+
+        .layer-chev:hover {
+            color: #fff;
+        }
+
+        .layer-chev[aria-expanded="true"] {
+            transform: rotate(180deg);
+        }
+
+        .layer-body {
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+            padding: 0.2rem 0.6rem 0.65rem;
+        }
+
+        .layer-flavor {
+            font-size: 0.72rem;
+            font-style: italic;
+            color: var(--accent-text);
+        }
+
+        .layer-body .setting-group label {
+            flex-basis: 4.5rem;
+        }
+
+        /* --- Counselor's Corner (daily quote) --- */
+        .counselor {
+            gap: 0.25rem;
+        }
+
+        .counselor-head {
+            font-size: 0.65rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .counselor-quote {
+            font-size: 0.8rem;
+            font-style: italic;
+            line-height: 1.45;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .counselor-attr {
+            font-size: 0.72rem;
+            color: var(--accent-text);
         }
 
         /* --- Install CTA (first launch, dismissible) --- */
@@ -288,10 +442,10 @@
             align-items: center;
             gap: 0.9rem;
             background: rgba(14, 20, 30, 0.92);
-            border: 1px solid rgba(130, 180, 255, 0.35);
+            border: 1px solid var(--accent-line);
             border-radius: 14px;
             padding: 0.65rem 0.65rem 0.65rem 1.1rem;
-            box-shadow: 0 10px 34px rgba(70, 130, 255, 0.28);
+            box-shadow: 0 10px 34px var(--accent-shadow);
             backdrop-filter: blur(12px);
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
@@ -312,14 +466,14 @@
 
         .install-cta-sub {
             font-size: 0.78rem;
-            color: rgba(200, 220, 255, 0.75);
+            color: var(--accent-text);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
         .install-cta-btn {
-            background: linear-gradient(135deg, #8ab8ff, #4a7dff);
+            background: linear-gradient(135deg, var(--btn-grad-a), var(--btn-grad-b));
             color: #05101f;
             font-weight: 600;
             font-size: 0.9rem;
@@ -418,6 +572,17 @@
             </div>
 
             <div class="setting-group">
+                <label id="warpLabel">Warp</label>
+                <div class="chip-row" id="warpChips" role="group" aria-labelledby="warpLabel"></div>
+            </div>
+
+            <div class="setting-group">
+                <label for="masterRange">Master</label>
+                <input type="range" id="masterRange" min="0" max="1" step="0.01" value="0.3">
+                <span class="display-val" id="masterDisplay">30%</span>
+            </div>
+
+            <div class="setting-group">
                 <label for="phaseDupRange">Phase Dups</label>
                 <input type="range" id="phaseDupRange" min="0" max="4" step="1" value="0">
                 <span class="display-val" id="phaseDupDisplay">0</span>
@@ -441,28 +606,17 @@
                 <span class="display-val" id="chorusDisplay">80%</span>
             </div>
 
-            <div class="setting-group toggle-row">
-                <label for="hiFreqToggle">Hi-Layer</label>
-                <div class="toggle" id="hiFreqToggle" role="switch" tabindex="0" aria-checked="false" aria-label="Hi-Layer"></div>
-            </div>
+            <!-- Sound layers (auto-generated from the sound bank in sounds/) -->
+            <div class="layer-rows" id="layerRows"></div>
+        </div>
 
-            <div class="setting-group">
-                <label for="hiVolRange">Hi Vol</label>
-                <input type="range" id="hiVolRange" min="0" max="1" step="0.05" value="0.25">
-                <span class="display-val" id="hiVolDisplay">25%</span>
-            </div>
+        <div class="settings-divider" aria-hidden="true"></div>
 
-            <div class="setting-group">
-                <label for="hiPitchRange">Hi Pitch</label>
-                <input type="range" id="hiPitchRange" min="0.5" max="3.0" step="0.05" value="0.50">
-                <span class="display-val" id="hiPitchDisplay">0.50x</span>
-            </div>
-
-            <div class="setting-group">
-                <label for="hiSpeedRange">Hi Speed</label>
-                <input type="range" id="hiSpeedRange" min="0.1" max="4.0" step="0.1" value="0.1">
-                <span class="display-val" id="hiSpeedDisplay">0.1 Hz</span>
-            </div>
+        <!-- Counselor's Corner (daily quote from data/quotes.txt) -->
+        <div class="settings-section counselor" id="counselorCorner" hidden>
+            <div class="counselor-head">Counselor's Corner</div>
+            <p class="counselor-quote" id="counselorQuote"></p>
+            <p class="counselor-attr" id="counselorAttr"></p>
         </div>
 
         <div class="settings-divider" aria-hidden="true"></div>
@@ -485,9 +639,13 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { SOUND_BANK } from './sounds/bank.js';
+        import { WarpEngine } from './sounds/engine.js';
+        import { WARP_PRESETS } from './presets/warp.js';
+
         // Release version - keep in sync with CHANGELOG.md
-        const APP_VERSION = '0.2.1';
+        const APP_VERSION = '0.3.0';
 
         const canvas = document.getElementById('warpCanvas');
         const ctx = canvas.getContext('2d');
@@ -509,7 +667,7 @@
         resize();
 
         let STAR_COUNT = 800;
-        let MAX_DEPTH = 1500;
+        const MAX_DEPTH = 1500;
         const FOCAL_LENGTH = 400;
         let speed = 15;
         let showTrails = false;
@@ -591,9 +749,8 @@
         }
 
         let stars = [];
-        function updateStarCount() {
-            const newCount = parseInt(document.getElementById('countRange').value);
-            STAR_COUNT = newCount;
+        function setStarCount(n) {
+            STAR_COUNT = n;
             while (stars.length > STAR_COUNT) stars.pop();
             while (stars.length < STAR_COUNT) stars.push(new Star());
             document.getElementById('countDisplay').textContent = STAR_COUNT;
@@ -609,63 +766,132 @@
             requestAnimationFrame(animate);
         }
 
-        document.getElementById('speedRange').addEventListener('input', (e) => {
-            speed = parseInt(e.target.value);
-            document.getElementById('speedDisplay').textContent = speed + 'x';
-        });
+        // --- Settings: single state object, persisted as warp.settings.v2 ---
+        //
+        // The panel is a view over `state`: every control writes into it,
+        // and renderControls() pushes it back to the DOM. The sound layers
+        // are described by the bank (sounds/bank.js), so new sounds need no
+        // panel, persistence, or reset plumbing here.
 
-        document.getElementById('countRange').addEventListener('input', updateStarCount);
+        const SETTINGS_KEY = 'warp.settings.v2';
+        const SETTINGS_KEY_V1 = 'warp.settings.v1';
 
-        const trailsToggle = document.getElementById('trailsToggle');
-        trailsToggle.addEventListener('click', function() {
-            showTrails = !showTrails;
-            this.classList.toggle('active');
-            this.setAttribute('aria-checked', String(showTrails));
-        });
+        const clampNum = (v, min, max) =>
+            (typeof v === 'number' && Number.isFinite(v)) ? Math.min(max, Math.max(min, v)) : null;
 
-        // Rear view: the camera faces away from the direction of travel, so
-        // stars enter from the edge of the screen and streak inward toward
-        // the vanishing point. Flipping the view re-seeds the starfield.
-        function setViewMode(rear) {
-            if (rearView === rear) return;
-            rearView = rear;
-            stars.forEach((s) => s.reset(true));
+        function defaultState() {
+            return {
+                v: 2,
+                starfield: { speed: 15, count: 800, trails: false, rearView: false, aberration: 0, edgeGlow: 0 },
+                sound: { enabled: false, master: 0.3, phaseDup: 0, width: 0.8, reverb: 1.0, chorus: 0.8 },
+                warp: 'warp-4',
+                layers: Object.fromEntries(SOUND_BANK.map((def) => [def.id, {
+                    enabled: def.enabledByDefault === true,
+                    ...Object.fromEntries(def.params.map((p) => [p.key, p.def])),
+                }])),
+                egg: { borg: false },
+            };
         }
 
-        const rearViewToggle = document.getElementById('rearViewToggle');
-        rearViewToggle.addEventListener('click', function() {
-            setViewMode(!rearView);
-            this.classList.toggle('active', rearView);
-            this.setAttribute('aria-checked', String(rearView));
-        });
+        function sanitize(s) {
+            const sf = s.starfield;
+            const so = s.sound;
+            const cSpeed = clampNum(sf.speed, 1, 20); if (cSpeed !== null) sf.speed = cSpeed;
+            const cCount = clampNum(sf.count, 100, 2000); if (cCount !== null) sf.count = cCount;
+            const cAberr = clampNum(sf.aberration, 0, 1); if (cAberr !== null) sf.aberration = cAberr;
+            const cGlow = clampNum(sf.edgeGlow, 0, 1); if (cGlow !== null) sf.edgeGlow = cGlow;
+            const cMaster = clampNum(so.master, 0, 1); if (cMaster !== null) so.master = cMaster;
+            const cDup = clampNum(so.phaseDup, 0, 4); if (cDup !== null) so.phaseDup = Math.round(cDup);
+            const cWidth = clampNum(so.width, 0, 1); if (cWidth !== null) so.width = cWidth;
+            const cRev = clampNum(so.reverb, 0, 1); if (cRev !== null) so.reverb = cRev;
+            const cChor = clampNum(so.chorus, 0, 1); if (cChor !== null) so.chorus = cChor;
+        }
 
-        document.getElementById('aberrationRange').addEventListener('input', (e) => {
-            aberration = parseFloat(e.target.value);
-            document.getElementById('aberrationDisplay').textContent = Math.round(aberration * 100) + '%';
-        });
+        function presetMatches(preset, s) {
+            for (const [layerId, values] of Object.entries(preset.values)) {
+                const layer = s.layers[layerId];
+                if (!layer) return false;
+                for (const [key, value] of Object.entries(values)) {
+                    if (Math.abs(layer[key] - value) > 1e-9) return false;
+                }
+            }
+            return true;
+        }
 
-        const edgeGlowEl = document.getElementById('edgeGlow');
-        document.getElementById('edgeGlowRange').addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            edgeGlowEl.style.opacity = val;
-            document.getElementById('edgeGlowDisplay').textContent = Math.round(val * 100) + '%';
-        });
+        // v1 stored one flat object of element ids (speedRange, hiFreqToggle,
+        // ...). Map the survivors into the v2 shape.
+        const V1_MAP = [
+            ['speedRange', (s, val) => { s.starfield.speed = parseInt(val, 10); }],
+            ['countRange', (s, val) => { s.starfield.count = parseInt(val, 10); }],
+            ['trailsToggle', (s, val) => { s.starfield.trails = !!val; }],
+            ['rearViewToggle', (s, val) => { s.starfield.rearView = !!val; }],
+            ['aberrationRange', (s, val) => { s.starfield.aberration = parseFloat(val); }],
+            ['edgeGlowRange', (s, val) => { s.starfield.edgeGlow = parseFloat(val); }],
+            ['soundToggle', (s, val) => { s.sound.enabled = !!val; }],
+            ['phaseDupRange', (s, val) => { s.sound.phaseDup = parseInt(val, 10); }],
+            ['stereoWidthRange', (s, val) => { s.sound.width = parseFloat(val); }],
+            ['reverbMixRange', (s, val) => { s.sound.reverb = parseFloat(val); }],
+            ['chorusMixRange', (s, val) => { s.sound.chorus = parseFloat(val); }],
+            ['hiVolRange', (s, val) => { s.layers.cooling.volume = parseFloat(val); }],
+            ['hiPitchRange', (s, val) => { s.layers.cooling.pitch = parseFloat(val); }],
+            ['hiSpeedRange', (s, val) => { s.layers.cooling.speed = parseFloat(val); }],
+            ['hiFreqToggle', (s, val) => { s.layers.cooling.enabled = !!val; }],
+        ];
+
+        function migrateV1(s, v1) {
+            for (const [key, apply] of V1_MAP) {
+                if (!(key in v1)) continue;
+                const num = parseFloat(v1[key]);
+                if (typeof v1[key] !== 'boolean' && Number.isNaN(num)) continue;
+                apply(s, v1[key]);
+            }
+            s.warp = WARP_PRESETS.some((p) => presetMatches(p, s)) ? 'warp-4' : 'custom';
+        }
+
+        function mergeV2(s, raw) {
+            Object.assign(s.starfield, raw.starfield || {});
+            Object.assign(s.sound, raw.sound || {});
+            if (typeof raw.warp === 'string') s.warp = raw.warp;
+            const rawLayers = raw.layers || {};
+            for (const def of SOUND_BANK) {
+                const saved = rawLayers[def.id] || {};
+                const layer = s.layers[def.id];
+                if (typeof saved.enabled === 'boolean') layer.enabled = saved.enabled;
+                for (const p of def.params) {
+                    const c = clampNum(saved[p.key], p.min, p.max);
+                    if (c !== null) layer[p.key] = c;
+                }
+            }
+            if (raw.egg && typeof raw.egg.borg === 'boolean') s.egg.borg = raw.egg.borg;
+        }
+
+        function loadSettings() {
+            const s = defaultState();
+            let v2 = null;
+            try { v2 = JSON.parse(localStorage.getItem(SETTINGS_KEY)); } catch (e) {}
+            if (v2 && typeof v2 === 'object' && v2.v === 2) {
+                mergeV2(s, v2);
+                sanitize(s);
+                return s;
+            }
+            let v1 = null;
+            try { v1 = JSON.parse(localStorage.getItem(SETTINGS_KEY_V1)); } catch (e) {}
+            if (v1 && typeof v1 === 'object') migrateV1(s, v1);
+            sanitize(s);
+            return s;
+        }
+
+        const state = loadSettings();
+
+        const saveSettings = () => {
+            try {
+                localStorage.setItem(SETTINGS_KEY, JSON.stringify(state));
+            } catch (e) { /* storage unavailable (private mode etc.) */ }
+        };
 
         // --- Audio Architecture ---
         let audioCtx = null;
-        let masterGain = null;
-
-        // Active Engine Instances (Main + Phase Duplicates)
-        let mainEngineInstance = null;
-        let duplicateEngineInstances = [];
-
-        // Single Hi-Layer (Shared/Global)
-        let hiFreqEnabled = false;
-        let hiFreqGain = null;
-        let hiFreqBaseVol = 0.25;
-        let hiDampingFilter = null;
-        let hiResFilter1 = null, hiResFilter2 = null, hiResFilter3 = null;
-        let hiOsc1 = null, hiOsc2 = null, hiLFO = null;
+        let engine = null; // WarpEngine (sounds/engine.js)
 
         // --- iOS Audio: kickstart + interruption recovery ---
         //
@@ -713,12 +939,12 @@
 
         function armOneShotResume() {
             if (resumeArmed || !audioCtx || audioCtx.state === 'running') return;
-            if (!soundToggleEl.classList.contains('active')) return;
+            if (!state.sound.enabled) return;
             resumeArmed = true;
             const handler = () => {
                 resumeArmed = false;
                 RESUME_EVENTS.forEach((ev) => window.removeEventListener(ev, handler));
-                if (!soundToggleEl.classList.contains('active')) return; // muted in the meantime
+                if (!state.sound.enabled) return; // muted in the meantime
                 ensureAudioRunning();
             };
             RESUME_EVENTS.forEach((ev) => window.addEventListener(ev, handler));
@@ -730,253 +956,6 @@
                 initSynthesizer();
             } else if (audioCtx.state !== 'running') {
                 ensureAudioRunning();
-            }
-        }
-
-        function createReverbBuffer(ctx) {
-            const duration = 1.2;
-            const sampleRate = ctx.sampleRate;
-            const length = sampleRate * duration;
-            const impulse = ctx.createBuffer(2, length, sampleRate);
-            const left = impulse.getChannelData(0);
-            const right = impulse.getChannelData(1);
-
-            for (let i = 0; i < length; i++) {
-                const decay = Math.exp(-i / (sampleRate * 0.15));
-                left[i] = (Math.random() * 2 - 1) * decay;
-                right[i] = (Math.random() * 2 - 1) * decay;
-            }
-            return impulse;
-        }
-
-        // Creates a complete, standalone Tab Audio Instance (Synthesizer + Chorus + Reverb + Spatializer)
-        function createFullEngineInstance(ctx, destination) {
-            const instanceBus = ctx.createGain();
-            instanceBus.gain.setValueAtTime(1.0, ctx.currentTime); // 100% volume output matching real tab behavior
-            instanceBus.connect(destination);
-
-            const dryBus = ctx.createGain();
-            dryBus.gain.setValueAtTime(0.7, ctx.currentTime);
-            dryBus.connect(instanceBus);
-
-            // 1. Independent Reverb Engine
-            const convolver = ctx.createConvolver();
-            convolver.buffer = createReverbBuffer(ctx);
-
-            const reverbGainNode = ctx.createGain();
-            const initRev = parseFloat(document.getElementById('reverbMixRange').value);
-            reverbGainNode.gain.setValueAtTime(initRev, ctx.currentTime);
-
-            convolver.connect(reverbGainNode);
-            reverbGainNode.connect(instanceBus);
-
-            // 2. Independent Chorus Engine
-            const chorusDelay = ctx.createDelay();
-            chorusDelay.delayTime.setValueAtTime(0.025, ctx.currentTime);
-
-            const chorusLFO = ctx.createOscillator();
-            chorusLFO.frequency.setValueAtTime(0.28 + Math.random() * 0.04, ctx.currentTime);
-
-            const chorusDepth = ctx.createGain();
-            chorusDepth.gain.setValueAtTime(0.003, ctx.currentTime);
-
-            chorusLFO.connect(chorusDepth);
-            chorusDepth.connect(chorusDelay.delayTime);
-            chorusLFO.start();
-
-            const chorusGainNode = ctx.createGain();
-            const initChorus = parseFloat(document.getElementById('chorusMixRange').value);
-            chorusGainNode.gain.setValueAtTime(initChorus, ctx.currentTime);
-
-            chorusDelay.connect(chorusGainNode);
-            chorusGainNode.connect(instanceBus);
-
-            // 3. Independent Mid-Side Stereo Widening Matrix
-            const synthOutputBus = ctx.createGain();
-
-            const widthVal = parseFloat(document.getElementById('stereoWidthRange').value);
-            const midGainNode = ctx.createGain();
-            midGainNode.gain.setValueAtTime(1 - widthVal * 0.25, ctx.currentTime);
-
-            const sideDelay = ctx.createDelay();
-            sideDelay.delayTime.setValueAtTime(0.012 + Math.random() * 0.004, ctx.currentTime);
-
-            const sideAllpass = ctx.createBiquadFilter();
-            sideAllpass.type = 'allpass';
-            sideAllpass.frequency.setValueAtTime(650 + (Math.random() - 0.5) * 40, ctx.currentTime);
-
-            const sideGainNode = ctx.createGain();
-            sideGainNode.gain.setValueAtTime(widthVal * 0.85, ctx.currentTime);
-
-            const sideInverter = ctx.createGain();
-            sideInverter.gain.setValueAtTime(-1, ctx.currentTime);
-
-            const spatialMerger = ctx.createChannelMerger(2);
-
-            synthOutputBus.connect(midGainNode);
-            synthOutputBus.connect(sideDelay);
-            sideDelay.connect(sideAllpass);
-            sideAllpass.connect(sideGainNode);
-
-            midGainNode.connect(spatialMerger, 0, 0);
-            midGainNode.connect(spatialMerger, 0, 1);
-
-            sideGainNode.connect(spatialMerger, 0, 0);
-            sideGainNode.connect(sideInverter);
-            sideInverter.connect(spatialMerger, 0, 1);
-
-            spatialMerger.connect(dryBus);
-            spatialMerger.connect(convolver);
-            spatialMerger.connect(chorusDelay);
-
-            // 4. Independent Noise Buffer Generation
-            const bufferSize = ctx.sampleRate * 4;
-            const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-            const output = noiseBuffer.getChannelData(0);
-            let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
-            for (let i = 0; i < bufferSize; i++) {
-                const white = Math.random() * 2 - 1;
-                b0 = 0.99886 * b0 + white * 0.0555179;
-                b1 = 0.99332 * b1 + white * 0.0750759;
-                b2 = 0.96900 * b2 + white * 0.1538520;
-                b3 = 0.86650 * b3 + white * 0.3104856;
-                b4 = 0.55000 * b4 + white * 0.5329522;
-                b5 = -0.7616 * b5 - white * 0.0168980;
-                output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.08;
-                b6 = white * 0.115926;
-            }
-
-            // 5. Sound Sources (Core Hum, Sub Bass, Pulse, Undulating Wind)
-            const noiseSource = ctx.createBufferSource();
-            noiseSource.buffer = noiseBuffer;
-            noiseSource.loop = true;
-
-            const noiseFilter = ctx.createBiquadFilter();
-            noiseFilter.type = 'lowpass';
-            noiseFilter.frequency.setValueAtTime(130, ctx.currentTime);
-
-            noiseSource.connect(noiseFilter);
-            noiseFilter.connect(synthOutputBus);
-
-            const detune = (Math.random() - 0.5) * 0.3;
-            const osc1 = ctx.createOscillator();
-            const osc2 = ctx.createOscillator();
-            osc1.type = 'sine'; osc2.type = 'sine';
-            osc1.frequency.setValueAtTime(58 + detune, ctx.currentTime);
-            osc2.frequency.setValueAtTime(58.7 + detune, ctx.currentTime);
-
-            const subGain = ctx.createGain();
-            subGain.gain.setValueAtTime(0.3, ctx.currentTime);
-            osc1.connect(subGain);
-            osc2.connect(subGain);
-            subGain.connect(synthOutputBus);
-
-            const pulseOsc = ctx.createOscillator();
-            pulseOsc.type = 'sine';
-            pulseOsc.frequency.setValueAtTime(78 + detune, ctx.currentTime);
-
-            const pulseGain = ctx.createGain();
-            pulseGain.gain.setValueAtTime(0.15, ctx.currentTime);
-
-            const pulseLFO = ctx.createOscillator();
-            pulseLFO.frequency.setValueAtTime(0.77 + (Math.random() - 0.5) * 0.04, ctx.currentTime);
-
-            const pulseLFODepth = ctx.createGain();
-            pulseLFODepth.gain.setValueAtTime(0.1, ctx.currentTime);
-
-            pulseLFO.connect(pulseLFODepth);
-            pulseLFODepth.connect(pulseGain.gain);
-
-            pulseOsc.connect(pulseGain);
-            pulseGain.connect(synthOutputBus);
-
-            const windNoiseSource = ctx.createBufferSource();
-            windNoiseSource.buffer = noiseBuffer;
-            windNoiseSource.loop = true;
-
-            const windFilter = ctx.createBiquadFilter();
-            windFilter.type = 'bandpass';
-            windFilter.frequency.setValueAtTime(160, ctx.currentTime);
-            windFilter.Q.setValueAtTime(1.8, ctx.currentTime);
-
-            const windGain = ctx.createGain();
-            windGain.gain.setValueAtTime(0.28, ctx.currentTime);
-
-            const windLFO = ctx.createOscillator();
-            windLFO.type = 'sine';
-            windLFO.frequency.setValueAtTime(0.13 + (Math.random() - 0.5) * 0.02, ctx.currentTime);
-
-            const windFilterMod = ctx.createGain();
-            windFilterMod.gain.setValueAtTime(75, ctx.currentTime);
-
-            const windGainMod = ctx.createGain();
-            windGainMod.gain.setValueAtTime(0.12, ctx.currentTime);
-
-            windLFO.connect(windFilterMod);
-            windFilterMod.connect(windFilter.frequency);
-
-            windLFO.connect(windGainMod);
-            windGainMod.connect(windGain.gain);
-
-            windNoiseSource.connect(windFilter);
-            windFilter.connect(windGain);
-            windGain.connect(synthOutputBus);
-
-            const offset1 = Math.random() * noiseBuffer.duration;
-            const offset2 = Math.random() * noiseBuffer.duration;
-            noiseSource.start(0, offset1);
-            osc1.start();
-            osc2.start();
-            pulseOsc.start();
-            pulseLFO.start();
-            windNoiseSource.start(0, offset2);
-            windLFO.start();
-
-            return {
-                synthOutputBus,
-                midGainNode,
-                sideGainNode,
-                reverbGainNode,
-                chorusGainNode,
-                stop: () => {
-                    try { noiseSource.stop(); } catch(e) {}
-                    try { osc1.stop(); } catch(e) {}
-                    try { osc2.stop(); } catch(e) {}
-                    try { pulseOsc.stop(); } catch(e) {}
-                    try { pulseLFO.stop(); } catch(e) {}
-                    try { windNoiseSource.stop(); } catch(e) {}
-                    try { windLFO.stop(); } catch(e) {}
-                    try { chorusLFO.stop(); } catch(e) {}
-                    setTimeout(() => { instanceBus.disconnect(); }, 50);
-                }
-            };
-        }
-
-        function updateAllInstances(param, value) {
-            const allInstances = [mainEngineInstance, ...duplicateEngineInstances].filter(Boolean);
-            const now = audioCtx ? audioCtx.currentTime : 0;
-
-            allInstances.forEach(inst => {
-                if (param === 'width' && inst.midGainNode && inst.sideGainNode) {
-                    inst.midGainNode.gain.setValueAtTime(1 - value * 0.25, now);
-                    inst.sideGainNode.gain.setValueAtTime(value * 0.85, now);
-                } else if (param === 'reverb' && inst.reverbGainNode) {
-                    inst.reverbGainNode.gain.setValueAtTime(value, now);
-                } else if (param === 'chorus' && inst.chorusGainNode) {
-                    inst.chorusGainNode.gain.setValueAtTime(value, now);
-                }
-            });
-        }
-
-        function syncDuplicateInstances(targetCount) {
-            if (!audioCtx || !masterGain) return;
-
-            while (duplicateEngineInstances.length < targetCount) {
-                duplicateEngineInstances.push(createFullEngineInstance(audioCtx, masterGain));
-            }
-            while (duplicateEngineInstances.length > targetCount) {
-                const inst = duplicateEngineInstances.pop();
-                if (inst) inst.stop();
             }
         }
 
@@ -1011,291 +990,448 @@
                 }, 1000);
             };
 
-            masterGain = audioCtx.createGain();
-            masterGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            masterGain.connect(audioCtx.destination);
-
-            // Primary Tab Instance
-            mainEngineInstance = createFullEngineInstance(audioCtx, masterGain);
-
-            // Duplicate Tab Instances
-            const initPhaseDup = parseInt(document.getElementById('phaseDupRange').value);
-            syncDuplicateInstances(initPhaseDup);
-
-            // Muffled Industrial Cooling Layer (Single Global High Layer)
-            hiFreqGain = audioCtx.createGain();
-            hiFreqBaseVol = parseFloat(document.getElementById('hiVolRange').value);
-            hiFreqGain.gain.setValueAtTime(hiFreqEnabled ? hiFreqBaseVol : 0, audioCtx.currentTime);
-
-            hiDampingFilter = audioCtx.createBiquadFilter();
-            hiDampingFilter.type = 'lowpass';
-            hiDampingFilter.frequency.setValueAtTime(1200, audioCtx.currentTime);
-
-            hiFreqGain.connect(hiDampingFilter);
-            hiDampingFilter.connect(masterGain);
-
-            const pVal = parseFloat(document.getElementById('hiPitchRange').value);
-            const sVal = parseFloat(document.getElementById('hiSpeedRange').value);
-
-            // High Noise Buffer Generator
-            const bufferSize = audioCtx.sampleRate * 4;
-            const hiNoiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const output = hiNoiseBuffer.getChannelData(0);
-            let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
-            for (let i = 0; i < bufferSize; i++) {
-                const white = Math.random() * 2 - 1;
-                b0 = 0.99886 * b0 + white * 0.0555179;
-                b1 = 0.99332 * b1 + white * 0.0750759;
-                b2 = 0.96900 * b2 + white * 0.1538520;
-                b3 = 0.86650 * b3 + white * 0.3104856;
-                b4 = 0.55000 * b4 + white * 0.5329522;
-                b5 = -0.7616 * b5 - white * 0.0168980;
-                output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.08;
-                b6 = white * 0.115926;
-            }
-
-            const hiNoiseSource = audioCtx.createBufferSource();
-            hiNoiseSource.buffer = hiNoiseBuffer;
-            hiNoiseSource.loop = true;
-
-            hiResFilter1 = audioCtx.createBiquadFilter();
-            hiResFilter1.type = 'bandpass';
-            hiResFilter1.Q.setValueAtTime(22, audioCtx.currentTime);
-
-            hiResFilter2 = audioCtx.createBiquadFilter();
-            hiResFilter2.type = 'bandpass';
-            hiResFilter2.Q.setValueAtTime(26, audioCtx.currentTime);
-
-            hiResFilter3 = audioCtx.createBiquadFilter();
-            hiResFilter3.type = 'bandpass';
-            hiResFilter3.Q.setValueAtTime(18, audioCtx.currentTime);
-
-            hiResFilter1.frequency.setValueAtTime(380 * pVal, audioCtx.currentTime);
-            hiResFilter2.frequency.setValueAtTime(740 * pVal, audioCtx.currentTime);
-            hiResFilter3.frequency.setValueAtTime(1290 * pVal, audioCtx.currentTime);
-
-            hiNoiseSource.connect(hiResFilter1);
-            hiNoiseSource.connect(hiResFilter2);
-            hiNoiseSource.connect(hiResFilter3);
-
-            hiResFilter1.connect(hiFreqGain);
-            hiResFilter2.connect(hiFreqGain);
-            hiResFilter3.connect(hiFreqGain);
-
-            hiOsc1 = audioCtx.createOscillator();
-            hiOsc2 = audioCtx.createOscillator();
-            hiOsc1.type = 'triangle';
-            hiOsc2.type = 'triangle';
-
-            hiOsc1.frequency.setValueAtTime(260 * pVal, audioCtx.currentTime);
-            hiOsc2.frequency.setValueAtTime(415 * pVal, audioCtx.currentTime);
-
-            const hiOscGain = audioCtx.createGain();
-            hiOscGain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-
-            hiOsc1.connect(hiOscGain);
-            hiOsc2.connect(hiOscGain);
-
-            hiLFO = audioCtx.createOscillator();
-            hiLFO.frequency.setValueAtTime(sVal, audioCtx.currentTime);
-
-            const hiLFODepth = audioCtx.createGain();
-            hiLFODepth.gain.setValueAtTime(0.04, audioCtx.currentTime);
-
-            hiLFO.connect(hiLFODepth);
-            hiLFODepth.connect(hiOscGain.gain);
-
-            hiOscGain.connect(hiFreqGain);
-
-            hiNoiseSource.start();
-            hiOsc1.start();
-            hiOsc2.start();
-            hiLFO.start();
+            // The engine builds the whole graph (effects chain + every bank
+            // layer) from the current state snapshot.
+            engine = new WarpEngine(audioCtx, {
+                master: state.sound.master,
+                fx: { width: state.sound.width, reverb: state.sound.reverb, chorus: state.sound.chorus },
+                layers: state.layers,
+            });
+            engine.setInstanceCount(1 + state.sound.phaseDup);
         }
 
-        // --- Dynamic Control Listeners ---
-        document.getElementById('phaseDupRange').addEventListener('input', (e) => {
-            const count = parseInt(e.target.value);
-            document.getElementById('phaseDupDisplay').textContent = count;
-            syncDuplicateInstances(count);
-        });
-
-        document.getElementById('stereoWidthRange').addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            document.getElementById('widthDisplay').textContent = Math.round(val * 100) + '%';
-            updateAllInstances('width', val);
-        });
-
-        document.getElementById('reverbMixRange').addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            document.getElementById('reverbDisplay').textContent = Math.round(val * 100) + '%';
-            updateAllInstances('reverb', val);
-        });
-
-        document.getElementById('chorusMixRange').addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            document.getElementById('chorusDisplay').textContent = Math.round(val * 100) + '%';
-            updateAllInstances('chorus', val);
-        });
-
-        const hiFreqToggleEl = document.getElementById('hiFreqToggle');
-        hiFreqToggleEl.addEventListener('click', function() {
-            hiFreqEnabled = !hiFreqEnabled;
-            this.classList.toggle('active');
-            this.setAttribute('aria-checked', String(hiFreqEnabled));
-            if (audioCtx && hiFreqGain) {
-                hiFreqGain.gain.setValueAtTime(hiFreqEnabled ? hiFreqBaseVol : 0, audioCtx.currentTime);
+        // Push the current sound state into the live graph (no-op before the
+        // first gesture, when the engine does not exist yet).
+        function applySoundToEngine() {
+            if (!engine) return;
+            engine.setMasterVolume(state.sound.master);
+            engine.setInstanceCount(1 + state.sound.phaseDup);
+            engine.setFx('width', state.sound.width);
+            engine.setFx('reverb', state.sound.reverb);
+            engine.setFx('chorus', state.sound.chorus);
+            for (const def of SOUND_BANK) {
+                const st = state.layers[def.id];
+                engine.setLayerEnabled(def.id, st.enabled);
+                for (const p of def.params) engine.setLayerValue(def.id, p.key, st[p.key] ?? p.def);
             }
+        }
+
+        // --- Control panel: static controls ---
+        const edgeGlowEl = document.getElementById('edgeGlow');
+
+        const setVal = (id, v) => { document.getElementById(id).value = v; };
+        const setDisplay = (id, t) => { document.getElementById(id).textContent = t; };
+        const setToggle = (id, on) => {
+            const el = document.getElementById(id);
+            el.classList.toggle('active', on);
+            el.setAttribute('aria-checked', String(on));
+        };
+
+        document.getElementById('speedRange').addEventListener('input', (e) => {
+            speed = state.starfield.speed = parseInt(e.target.value, 10);
+            setDisplay('speedDisplay', speed + 'x');
+            saveSettings();
         });
 
-        document.getElementById('hiVolRange').addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            hiFreqBaseVol = val;
-            document.getElementById('hiVolDisplay').textContent = Math.round(val * 100) + '%';
-            if (audioCtx && hiFreqGain && hiFreqEnabled) {
-                hiFreqGain.gain.setValueAtTime(val, audioCtx.currentTime);
-            }
+        document.getElementById('countRange').addEventListener('input', (e) => {
+            state.starfield.count = parseInt(e.target.value, 10);
+            setStarCount(state.starfield.count);
+            saveSettings();
         });
 
-        document.getElementById('hiPitchRange').addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            document.getElementById('hiPitchDisplay').textContent = val.toFixed(2) + 'x';
-            if (audioCtx && hiResFilter1) {
-                const now = audioCtx.currentTime;
-                hiResFilter1.frequency.setValueAtTime(380 * val, now);
-                hiResFilter2.frequency.setValueAtTime(740 * val, now);
-                hiResFilter3.frequency.setValueAtTime(1290 * val, now);
-                if (hiOsc1) hiOsc1.frequency.setValueAtTime(260 * val, now);
-                if (hiOsc2) hiOsc2.frequency.setValueAtTime(415 * val, now);
-                if (hiDampingFilter) hiDampingFilter.frequency.setValueAtTime(1200 * Math.min(1.5, val), now);
-            }
+        document.getElementById('trailsToggle').addEventListener('click', function() {
+            showTrails = state.starfield.trails = !state.starfield.trails;
+            this.classList.toggle('active', showTrails);
+            this.setAttribute('aria-checked', String(showTrails));
+            saveSettings();
         });
 
-        document.getElementById('hiSpeedRange').addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            document.getElementById('hiSpeedDisplay').textContent = val.toFixed(1) + ' Hz';
-            if (audioCtx && hiLFO) {
-                hiLFO.frequency.setValueAtTime(val, audioCtx.currentTime);
-            }
+        // Rear view: the camera faces away from the direction of travel, so
+        // stars enter from the edge of the screen and streak inward toward
+        // the vanishing point. Flipping the view re-seeds the starfield.
+        function setViewMode(rear) {
+            if (rearView === rear) return;
+            rearView = rear;
+            stars.forEach((s) => s.reset(true));
+        }
+
+        document.getElementById('rearViewToggle').addEventListener('click', function() {
+            state.starfield.rearView = !state.starfield.rearView;
+            setViewMode(state.starfield.rearView);
+            this.classList.toggle('active', state.starfield.rearView);
+            this.setAttribute('aria-checked', String(state.starfield.rearView));
+            saveSettings();
         });
 
-        const soundToggleEl = document.getElementById('soundToggle');
-        soundToggleEl.addEventListener('click', function() {
-            // Flip the switch synchronously so the panel's click-save sees
-            // the new state — the async audio work below must not let the
-            // save race ahead of the class change.
+        document.getElementById('aberrationRange').addEventListener('input', (e) => {
+            aberration = state.starfield.aberration = parseFloat(e.target.value);
+            setDisplay('aberrationDisplay', Math.round(aberration * 100) + '%');
+            saveSettings();
+        });
+
+        document.getElementById('edgeGlowRange').addEventListener('input', (e) => {
+            const val = state.starfield.edgeGlow = parseFloat(e.target.value);
+            edgeGlowEl.style.opacity = val;
+            setDisplay('edgeGlowDisplay', Math.round(val * 100) + '%');
+            saveSettings();
+        });
+
+        document.getElementById('soundToggle').addEventListener('click', function() {
+            // Flip the switch synchronously so the persisted state matches
+            // what the user sees before any async audio work runs.
             const turningOn = !this.classList.contains('active');
             this.classList.toggle('active', turningOn);
             this.setAttribute('aria-checked', String(turningOn));
-
+            state.sound.enabled = turningOn;
             if (turningOn) {
                 startSynthesizer();
             } else if (audioCtx && audioCtx.state === 'running') {
                 audioCtx.suspend();
             }
+            saveSettings();
         });
 
-        // Keyboard support for the visual switches (Space / Enter)
-        [trailsToggle, rearViewToggle, hiFreqToggleEl, soundToggleEl].forEach((el) => {
-            el.addEventListener('keydown', (e) => {
-                if (e.key === ' ' || e.key === 'Enter') {
-                    e.preventDefault();
-                    el.click();
+        document.getElementById('masterRange').addEventListener('input', (e) => {
+            const val = state.sound.master = parseFloat(e.target.value);
+            setDisplay('masterDisplay', Math.round(val * 100) + '%');
+            if (engine) engine.setMasterVolume(val);
+            saveSettings();
+        });
+
+        document.getElementById('phaseDupRange').addEventListener('input', (e) => {
+            const count = state.sound.phaseDup = parseInt(e.target.value, 10);
+            setDisplay('phaseDupDisplay', count);
+            if (engine) engine.setInstanceCount(1 + count);
+            saveSettings();
+        });
+
+        document.getElementById('stereoWidthRange').addEventListener('input', (e) => {
+            const val = state.sound.width = parseFloat(e.target.value);
+            setDisplay('widthDisplay', Math.round(val * 100) + '%');
+            if (engine) engine.setFx('width', val);
+            saveSettings();
+        });
+
+        document.getElementById('reverbMixRange').addEventListener('input', (e) => {
+            const val = state.sound.reverb = parseFloat(e.target.value);
+            setDisplay('reverbDisplay', Math.round(val * 100) + '%');
+            if (engine) engine.setFx('reverb', val);
+            saveSettings();
+        });
+
+        document.getElementById('chorusMixRange').addEventListener('input', (e) => {
+            const val = state.sound.chorus = parseFloat(e.target.value);
+            setDisplay('chorusDisplay', Math.round(val * 100) + '%');
+            if (engine) engine.setFx('chorus', val);
+            saveSettings();
+        });
+
+        // --- Warp factor presets (chip row) ---
+        const warpRow = document.getElementById('warpChips');
+        for (const preset of WARP_PRESETS) {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'chip';
+            chip.id = 'warpChip-' + preset.id;
+            chip.textContent = preset.label;
+            chip.title = preset.hint;
+            chip.setAttribute('aria-pressed', 'false');
+            chip.addEventListener('click', () => applyWarp(preset.id));
+            warpRow.appendChild(chip);
+        }
+
+        function syncWarpChips() {
+            for (const preset of WARP_PRESETS) {
+                const on = state.warp === preset.id;
+                const chip = document.getElementById('warpChip-' + preset.id);
+                chip.classList.toggle('active', on);
+                chip.setAttribute('aria-pressed', String(on));
+            }
+        }
+
+        function applyWarp(presetId) {
+            const preset = WARP_PRESETS.find((p) => p.id === presetId);
+            if (!preset) return;
+            for (const [layerId, values] of Object.entries(preset.values)) {
+                const layer = state.layers[layerId];
+                if (!layer) continue;
+                for (const [key, value] of Object.entries(values)) {
+                    if (key in layer) layer[key] = value;
                 }
-            });
-        });
+            }
+            state.warp = presetId;
+            syncWarpChips();
+            renderLayerRows();
+            applySoundToEngine();
+            saveSettings();
+        }
 
-        // --- Settings: persist to localStorage, restore on launch, reset to defaults ---
-        const SETTINGS_KEY = 'warp.settings.v1';
-        const sliderIds = [
-            'speedRange', 'countRange', 'aberrationRange', 'edgeGlowRange',
-            'phaseDupRange', 'stereoWidthRange', 'reverbMixRange', 'chorusMixRange',
-            'hiVolRange', 'hiPitchRange', 'hiSpeedRange'
-        ];
-        const toggleIds = ['trailsToggle', 'rearViewToggle', 'soundToggle', 'hiFreqToggle'];
+        // --- Sound layers (auto-generated from the sound bank) ---
+        const layerRowsEl = document.getElementById('layerRows');
 
-        const syncToggleAria = () => {
-            toggleIds.forEach((id) => {
-                const el = document.getElementById(id);
-                el.setAttribute('aria-checked', String(el.classList.contains('active')));
-            });
-        };
+        function buildLayerRows() {
+            layerRowsEl.innerHTML = '';
+            for (const def of SOUND_BANK) {
+                // Egg-locked layers stay out of the panel until unlocked.
+                if (def.egg && !state.egg[def.egg]) continue;
+                const st = state.layers[def.id];
 
-        const saveSettings = () => {
+                const row = document.createElement('div');
+                row.className = 'layer-row';
+                row.dataset.layer = def.id;
+
+                const head = document.createElement('div');
+                head.className = 'layer-head';
+
+                const toggle = document.createElement('div');
+                toggle.className = 'toggle';
+                toggle.id = 'layerToggle-' + def.id;
+                toggle.setAttribute('role', 'switch');
+                toggle.setAttribute('tabindex', '0');
+                toggle.setAttribute('aria-label', def.label);
+
+                const label = document.createElement('span');
+                label.className = 'layer-label';
+                label.textContent = def.label;
+
+                const chev = document.createElement('button');
+                chev.type = 'button';
+                chev.className = 'layer-chev';
+                chev.setAttribute('aria-expanded', 'false');
+                chev.setAttribute('aria-label', 'Tune ' + def.label);
+                chev.textContent = '▾';
+
+                head.append(toggle, label, chev);
+
+                const body = document.createElement('div');
+                body.className = 'layer-body';
+                body.hidden = true;
+
+                const flavor = document.createElement('p');
+                flavor.className = 'layer-flavor';
+                flavor.textContent = def.flavor;
+                body.appendChild(flavor);
+
+                for (const p of def.params) {
+                    const group = document.createElement('div');
+                    group.className = 'setting-group';
+                    const rangeId = `layerRange-${def.id}-${p.key}`;
+
+                    const lab = document.createElement('label');
+                    lab.setAttribute('for', rangeId);
+                    lab.textContent = p.label;
+
+                    const input = document.createElement('input');
+                    input.type = 'range';
+                    input.id = rangeId;
+                    input.min = p.min;
+                    input.max = p.max;
+                    input.step = p.step;
+
+                    const disp = document.createElement('span');
+                    disp.className = 'display-val';
+                    disp.id = `layerDisplay-${def.id}-${p.key}`;
+
+                    input.addEventListener('input', (e) => {
+                        const v = parseFloat(e.target.value);
+                        st[p.key] = v;
+                        disp.textContent = p.format ? p.format(v) : String(v);
+                        // A manual tweak takes the sound off the preset.
+                        state.warp = 'custom';
+                        syncWarpChips();
+                        if (engine) engine.setLayerValue(def.id, p.key, v);
+                        saveSettings();
+                    });
+
+                    group.append(lab, input, disp);
+                    body.appendChild(group);
+                }
+
+                toggle.addEventListener('click', () => {
+                    st.enabled = !st.enabled;
+                    toggle.classList.toggle('active', st.enabled);
+                    toggle.setAttribute('aria-checked', String(st.enabled));
+                    if (engine) engine.setLayerEnabled(def.id, st.enabled);
+                    saveSettings();
+                });
+
+                // Accordion: opening a sub-menu closes the others.
+                chev.addEventListener('click', () => {
+                    const willOpen = body.hidden;
+                    layerRowsEl.querySelectorAll('.layer-body').forEach((b) => { b.hidden = true; });
+                    layerRowsEl.querySelectorAll('.layer-chev').forEach((c) => c.setAttribute('aria-expanded', 'false'));
+                    body.hidden = !willOpen;
+                    chev.setAttribute('aria-expanded', String(willOpen));
+                });
+
+                row.append(head, body);
+                layerRowsEl.appendChild(row);
+            }
+            renderLayerRows();
+        }
+
+        function renderLayerRows() {
+            for (const def of SOUND_BANK) {
+                const row = layerRowsEl.querySelector(`.layer-row[data-layer="${def.id}"]`);
+                if (!row) continue;
+                const st = state.layers[def.id];
+                setToggle('layerToggle-' + def.id, st.enabled);
+                for (const p of def.params) {
+                    const value = st[p.key] ?? p.def;
+                    setVal(`layerRange-${def.id}-${p.key}`, value);
+                    setDisplay(`layerDisplay-${def.id}-${p.key}`, p.format ? p.format(value) : String(value));
+                }
+            }
+        }
+
+        // --- Push state to every control (after load / reset) ---
+        function renderControls() {
+            const sf = state.starfield;
+            setVal('speedRange', sf.speed);
+            setDisplay('speedDisplay', sf.speed + 'x');
+            setVal('countRange', sf.count);
+            setDisplay('countDisplay', sf.count);
+            setToggle('trailsToggle', sf.trails);
+            setToggle('rearViewToggle', sf.rearView);
+            setVal('aberrationRange', sf.aberration);
+            setDisplay('aberrationDisplay', Math.round(sf.aberration * 100) + '%');
+            setVal('edgeGlowRange', sf.edgeGlow);
+            setDisplay('edgeGlowDisplay', Math.round(sf.edgeGlow * 100) + '%');
+
+            const so = state.sound;
+            setToggle('soundToggle', so.enabled);
+            setVal('masterRange', so.master);
+            setDisplay('masterDisplay', Math.round(so.master * 100) + '%');
+            setVal('phaseDupRange', so.phaseDup);
+            setDisplay('phaseDupDisplay', so.phaseDup);
+            setVal('stereoWidthRange', so.width);
+            setDisplay('widthDisplay', Math.round(so.width * 100) + '%');
+            setVal('reverbMixRange', so.reverb);
+            setDisplay('reverbDisplay', Math.round(so.reverb * 100) + '%');
+            setVal('chorusMixRange', so.chorus);
+            setDisplay('chorusDisplay', Math.round(so.chorus * 100) + '%');
+
+            syncWarpChips();
+            renderLayerRows();
+        }
+
+        function applyStarfieldToRuntime() {
+            const sf = state.starfield;
+            speed = sf.speed;
+            setStarCount(sf.count);
+            showTrails = sf.trails;
+            setViewMode(sf.rearView);
+            aberration = sf.aberration;
+            edgeGlowEl.style.opacity = sf.edgeGlow;
+        }
+
+        // --- Reset ---
+        function resetSettings() {
             try {
-                const s = {};
-                sliderIds.forEach((id) => { s[id] = document.getElementById(id).value; });
-                toggleIds.forEach((id) => { s[id] = document.getElementById(id).classList.contains('active'); });
-                localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
-            } catch (e) { /* storage unavailable (private mode etc.) */ }
-        };
-
-        const restoreSettings = () => {
-            let saved = null;
-            try { saved = JSON.parse(localStorage.getItem(SETTINGS_KEY)); } catch (e) {}
-            if (!saved || typeof saved !== 'object') return;
-
-            // Re-dispatching 'input' runs each control's existing handler
-            // (display text + runtime state), so nothing is duplicated.
-            sliderIds.forEach((id) => {
-                const el = document.getElementById(id);
-                if (typeof saved[id] === 'string' && !Number.isNaN(parseFloat(saved[id]))) {
-                    el.value = saved[id];
-                    el.dispatchEvent(new Event('input'));
-                }
-            });
-            toggleIds.forEach((id) => {
-                const el = document.getElementById(id);
-                if (typeof saved[id] === 'boolean') el.classList.toggle('active', saved[id]);
-            });
-            syncToggleAria();
-
-            // Runtime flags that don't flow through an input event
-            showTrails = document.getElementById('trailsToggle').classList.contains('active');
-            setViewMode(document.getElementById('rearViewToggle').classList.contains('active'));
-            hiFreqEnabled = document.getElementById('hiFreqToggle').classList.contains('active');
-
-            // Audio cannot start before the user's first gesture - if sound
-            // was on, start it then (the sliders already hold the saved params).
-            // touchend/click are included because some mobile browsers only
-            // unlock audio on the tap-up, not the tap-down.
-            if (document.getElementById('soundToggle').classList.contains('active')) {
-                const START_EVENTS = ['pointerdown', 'touchend', 'click', 'keydown'];
-                const startAudio = () => {
-                    startSynthesizer();
-                    START_EVENTS.forEach((ev) => window.removeEventListener(ev, startAudio));
-                };
-                START_EVENTS.forEach((ev) => window.addEventListener(ev, startAudio));
+                localStorage.removeItem(SETTINGS_KEY);
+                localStorage.removeItem(SETTINGS_KEY_V1);
+            } catch (e) {}
+            const fresh = defaultState();
+            Object.assign(state.starfield, fresh.starfield);
+            Object.assign(state.sound, fresh.sound);
+            state.warp = fresh.warp;
+            for (const def of SOUND_BANK) {
+                // Mutate in place: the engine holds a reference to these objects.
+                Object.assign(state.layers[def.id], fresh.layers[def.id]);
             }
-        };
+            Object.assign(state.egg, fresh.egg);
 
-        const resetSettings = () => {
-            try { localStorage.removeItem(SETTINGS_KEY); } catch (e) {}
-            sliderIds.forEach((id) => {
-                const el = document.getElementById(id);
-                el.value = el.defaultValue; // default as written in the markup
-                el.dispatchEvent(new Event('input'));
-            });
-            toggleIds.forEach((id) => { document.getElementById(id).classList.remove('active'); });
-            syncToggleAria();
-            showTrails = false;
-            setViewMode(false);
-            hiFreqEnabled = false;
+            document.body.classList.remove('borg');
+            buildLayerRows();
+            renderControls();
+            applyStarfieldToRuntime();
+            if (audioCtx && audioCtx.state === 'running') audioCtx.suspend();
+            if (engine) applySoundToEngine();
+        }
 
-            // Bring the live audio graph back in line with the restored defaults
-            if (audioCtx) {
-                if (hiFreqGain) hiFreqGain.gain.setValueAtTime(0, audioCtx.currentTime);
-                if (audioCtx.state === 'running') audioCtx.suspend();
+        // --- The Collective: hidden easter egg ---
+        // Tap the version tag five times within three seconds. Flips the
+        // whole UI accent from blue to green (CSS vars on body.borg) and
+        // reveals the Collective layer in the sound bank.
+        const versionTag = document.getElementById('versionTag');
+        let borgTapCount = 0;
+        let borgTapTimer = null;
+        const BORG_TAPS = 5;
+
+        versionTag.addEventListener('click', (e) => {
+            e.stopPropagation();
+            borgTapCount += 1;
+            clearTimeout(borgTapTimer);
+            borgTapTimer = setTimeout(() => { borgTapCount = 0; }, 3000);
+            if (borgTapCount >= BORG_TAPS) {
+                borgTapCount = 0;
+                toggleBorg();
             }
-        };
+        });
 
-        restoreSettings();
+        function toggleBorg() {
+            state.egg.borg = !state.egg.borg;
+            document.body.classList.toggle('borg', state.egg.borg);
+            buildLayerRows(); // rebuild so the egg-locked row appears/vanishes
+            renderControls();
+            if (engine) engine.setLayerEnabled('borg', !!state.layers.borg.enabled);
+            saveSettings();
+        }
 
+        // --- Counselor's Corner: one quote a day from data/quotes.txt ---
+        // Format: one quote per block - a line of text, then a line starting
+        // with "—" for the attribution, blocks separated by blank lines.
+        const counselorCorner = document.getElementById('counselorCorner');
+        let loadedQuotes = [];
+
+        function parseQuotes(text) {
+            const entries = [];
+            for (const block of text.split(/\n\s*\n/)) {
+                const lines = block.split('\n').map((l) => l.trim()).filter(Boolean);
+                if (!lines.length || !lines[0]) continue;
+                const attr = lines.length > 1 && lines[1].startsWith('—') ? lines[1].slice(1).trim() : '';
+                entries.push({ quote: lines[0], attr });
+            }
+            return entries;
+        }
+
+        async function loadCounselorQuote() {
+            try {
+                const res = await fetch('data/quotes.txt');
+                if (!res.ok) return;
+                loadedQuotes = parseQuotes(await res.text());
+                if (!loadedQuotes.length) return;
+                const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+                const day = Math.floor((Date.now() - startOfYear.getTime()) / 86400000);
+                const q = loadedQuotes[day % loadedQuotes.length];
+                document.getElementById('counselorQuote').textContent = '“' + q.quote + '”';
+                document.getElementById('counselorAttr').textContent = q.attr ? '— ' + q.attr : '';
+                counselorCorner.hidden = false;
+            } catch (e) { /* no quotes file yet (offline before first cache): stay hidden */ }
+        }
+
+        // --- Boot ---
+        document.body.classList.toggle('borg', state.egg.borg);
+        buildLayerRows();
+        renderControls();
+        applyStarfieldToRuntime();
         document.getElementById('resetBtn').addEventListener('click', resetSettings);
-        document.getElementById('versionTag').textContent = 'v' + APP_VERSION;
-
-        updateStarCount();
+        versionTag.textContent = 'v' + APP_VERSION;
+        loadCounselorQuote();
         animate();
+
+        // Audio cannot start before the user's first gesture - if sound
+        // was on, start it then (the state already holds the saved params).
+        // touchend/click are included because some mobile browsers only
+        // unlock audio on the tap-up, not the tap-down.
+        if (state.sound.enabled) {
+            const START_EVENTS = ['pointerdown', 'touchend', 'click', 'keydown'];
+            const startAudio = () => {
+                startSynthesizer();
+                START_EVENTS.forEach((ev) => window.removeEventListener(ev, startAudio));
+            };
+            START_EVENTS.forEach((ev) => window.addEventListener(ev, startAudio));
+        }
 
         // Debug handle for the automated test suite (tests/): load with
         // ?debug=1 to expose simulation internals on window.__warp.
@@ -1303,6 +1439,12 @@
             window.__warp = {
                 get stars() { return stars; },
                 get rearView() { return rearView; },
+                get state() { return state; },
+                get engine() { return engine; },
+                get bank() { return SOUND_BANK; },
+                get quotes() { return loadedQuotes; },
+                applyWarp,
+                toggleBorg,
             };
         }
 
@@ -1353,13 +1495,19 @@
             else openPanel();
         });
 
-        settingsPanel.addEventListener('click', (e) => {
-            openPanel(); // resets the idle timer
-            if (e.target.classList.contains('toggle')) saveSettings();
-        });
-        settingsPanel.addEventListener('input', saveSettings);
+        settingsPanel.addEventListener('click', openPanel); // resets the idle timer
+        settingsPanel.addEventListener('input', saveSettings); // safety net
         settingsPanel.addEventListener('pointermove', openPanel);
         settingsPanel.addEventListener('focusin', openPanel);
+
+        // Keyboard support for the visual switches (Space / Enter), static
+        // and bank-generated alike.
+        settingsPanel.addEventListener('keydown', (e) => {
+            if ((e.key === ' ' || e.key === 'Enter') && e.target.classList && e.target.classList.contains('toggle')) {
+                e.preventDefault();
+                e.target.click();
+            }
+        });
 
         canvas.addEventListener('pointermove', peekToggle);
         canvas.addEventListener('pointerdown', peekToggle);

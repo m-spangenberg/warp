@@ -3,7 +3,7 @@
 /* Bump the version when CORE_ASSETS gains/loses files so existing installs
    refresh their precache. (Content-only changes are picked up automatically
    for navigation; assets are cache-first.) */
-const CACHE_NAME = 'starfield-warp-v1';
+const CACHE_NAME = 'starfield-warp-v2';
 
 /* Everything the app needs to run with zero network. */
 const CORE_ASSETS = [
@@ -14,6 +14,17 @@ const CORE_ASSETS = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/maskable-512.png',
+  /* Sound bank (one file per sound) + engine + presets + quotes. */
+  './sounds/bank.js',
+  './sounds/engine.js',
+  './sounds/noise.js',
+  './sounds/core-hum.js',
+  './sounds/pulse.js',
+  './sounds/wind.js',
+  './sounds/cooling.js',
+  './sounds/borg.js',
+  './presets/warp.js',
+  './data/quotes.txt',
 ];
 
 self.addEventListener('install', (event) => {

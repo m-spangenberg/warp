@@ -1,5 +1,5 @@
-// Settings suite: persistence (save/restore/reset), version tag,
-// toggle accessibility (ARIA + keyboard).
+// Settings suite: persistence (save/restore/reset, warp.settings.v2),
+// version tag, toggle accessibility (ARIA + keyboard).
 const { BASE, launch, trackErrors } = require('./common.js');
 
 async function main() {
@@ -17,7 +17,7 @@ async function main() {
     const a = (id) => document.getElementById(id).classList.contains('active');
     return {
       speed: g('speedRange'), count: g('countRange'), trails: a('trailsToggle'), rear: a('rearViewToggle'),
-      sound: a('soundToggle'), hi: a('hiFreqToggle'), aberr: g('aberrationRange'),
+      sound: a('soundToggle'), cooling: a('layerToggle-cooling'), master: g('masterRange'), aberr: g('aberrationRange'),
       glow: g('edgeGlowRange'), reverb: g('reverbMixRange'),
       speedDisplay: document.getElementById('speedDisplay').textContent,
       countDisplay: document.getElementById('countDisplay').textContent,
@@ -79,10 +79,10 @@ async function main() {
     set('reverbMixRange', '0.5');
     document.getElementById('trailsToggle').click();
     document.getElementById('rearViewToggle').click();
-    document.getElementById('hiFreqToggle').click();
+    document.getElementById('layerToggle-cooling').click();
   });
   await new Promise((r) => setTimeout(r, 300));
-  results.stored = await page.evaluate(() => localStorage.getItem('warp.settings.v1'));
+  results.stored = await page.evaluate(() => localStorage.getItem('warp.settings.v2'));
 
   // 4. Reload -> everything restored
   await page.reload({ waitUntil: 'networkidle0' });
@@ -98,7 +98,7 @@ async function main() {
   await page.click('#resetBtn');
   await new Promise((r) => setTimeout(r, 300));
   results.afterReset = await getVals();
-  results.storedAfterReset = await page.evaluate(() => localStorage.getItem('warp.settings.v1'));
+  results.storedAfterReset = await page.evaluate(() => localStorage.getItem('warp.settings.v2'));
 
   // 6. Change again -> saved again (native input events bubble; mimic that)
   await page.evaluate(() => {
@@ -108,7 +108,7 @@ async function main() {
   });
   await new Promise((r) => setTimeout(r, 200));
   results.storedAfterChange = await page.evaluate(() => {
-    try { return JSON.parse(localStorage.getItem('warp.settings.v1')).speedRange; } catch (e) { return null; }
+    try { return JSON.parse(localStorage.getItem('warp.settings.v2')).starfield.speed; } catch (e) { return null; }
   });
 
   // 7. Sound restore: enable sound (inits audio), reload -> toggle restored,

@@ -13,6 +13,9 @@ Recreates the soothing low-frequency rumble of a Galaxy-class starship cruising 
 > [!NOTE] 
 > **Mobile Friendly:** This is a Progressive Web App that works offline on desktop and mobile.
 
+> [!TIP]
+> **Trekkies:** every sound is a self-describing layer in [`sounds/`](sounds/), with warp factor presets (Impulse to Warp 9) in the control panel. Adding a new sound is a one-file job - see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 > [!WARNING]
 > **Known Bug:** On iOS, audio will fail to resume when reopening the app. A workaround is to switch audio toggle to off then close the app before reopening it.
 

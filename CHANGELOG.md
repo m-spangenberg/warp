@@ -2,6 +2,19 @@
 
 All notable changes to Warp are documented in this file. Each version lists its changes by type: Added, Changed, Deprecated, Removed, Fixed, Security.
 
+## v0.3.0
+
+- Added a modular sound bank: every soundscape element is now a self-describing layer in its own file under `sounds/` (core hum, pulse, wind, cooling). Adding a new sound is dropping in one file - no engine, panel, or persistence plumbing (see CONTRIBUTING.md).
+- Added warp factor presets: Impulse (sub-light - the slowest speed), Warp 4 (cruise, the stock sound), Warp 8, and Warp 9, each re-tuning the entire sound bank. Tweak a layer manually and the setting drops to Custom.
+- Added per-sound controls: the soundscape section now lists every sound in the bank with an on/off toggle and an expandable sub-menu with volume, pitch, and speed sliders plus a line of lore.
+- Added a master volume slider (output volume was previously fixed).
+- Added a hidden sound to the bank. Find it in the corner of the control panel. \U0001F596
+- Added Counselor's Corner: one Star Trek quote a day at the bottom of the control panel. Quotes live in `data/quotes.txt` (one per block: a text line, then an attribution line starting with `—`).
+- Changed: settings now persist under `warp.settings.v2`; existing `warp.settings.v1` settings migrate automatically on load.
+- Changed: the cooling layer now runs through the same reverb/chorus/width chain as the other sounds, so Phase Dups affect it too (slightly richer).
+- Changed: the service worker precache includes the sound bank, presets, and quotes (`starfield-warp-v2`).
+- Changed: the headless test suite covers the bank registry, auto-generated panel rows, warp presets, the hidden easter egg, quote display, and v1→v2 migration (`tests/test-soundbank.js`).
+
 ## v0.2.1
 
 - Fixed audio crackling and stuttering on iOS: the AudioContext is now pinned to a fixed 44.1 kHz sample rate (falling back to the device default when unsupported), so mid-session hardware rate changes no longer force an internal resample of the whole graph.

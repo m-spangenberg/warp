@@ -28,6 +28,53 @@ npm test      # serves the repo root and runs all suites
 
 Please run the suite before submitting any pull request.
 
+## Adding a Sound to the Sound Bank
+
+Every ambient sound is a self-describing **layer** in its own file under [`sounds/`](sounds/):
+
+```
+sounds/
+  core-hum.js   one file per sound
+  pulse.js
+  wind.js
+  cooling.js
+  borg.js       the hidden one - tune away
+  bank.js       registry: import the layer, add it to SOUND_BANK
+  engine.js     builds the Web Audio graph from the bank (don't touch)
+  noise.js      shared pink-noise buffer
+```
+
+A layer exports one default descriptor:
+
+```js
+export default {
+  id: 'my-sound',           // unique key (settings, presets)
+  label: 'My Sound',        // name shown in the panel
+  flavor: 'A line of lore shown in the sub-menu.',
+  enabledByDefault: false,  // on/off after a Reset
+  params: [                 // sub-menu sliders, in display order
+    { key: 'volume', label: 'Volume', min: 0, max: 1, step: 0.01, def: 0.2, format: (v) => Math.round(v * 100) + '%' },
+  ],
+  build(ctx, out, values, shared) {
+    // Create Web Audio nodes, connect them to `out`, start the sources.
+    // `shared.noiseBuffer` is a 4 s shared pink-noise buffer.
+    return {
+      update(key, value) { /* live-tune one param */ },
+      stop() { /* stop every source you started */ },
+    };
+  },
+};
+```
+
+Then add `import mySound from './my-sound.js';` in `sounds/bank.js` and drop `mySound` into `SOUND_BANK`. The panel row, sub-menu, persistence, reset, and warp-preset plumbing all work off the descriptor automatically.
+
+Notes:
+
+- **Presets** ([`presets/warp.js`](presets/warp.js)) are plain `layerId -> {param: value}` maps; add your sound to the warp factors there if it should respond to them.
+- **Offline PWA**: add the new file to `CORE_ASSETS` in `sw.js` and bump `CACHE_NAME` so installed copies can fetch it.
+- **Egg-locked sounds** set `egg: 'name'` and only appear in the panel while `state.egg.name` is true.
+- **Tests**: `tests/test-soundbank.js` exercises the bank through the `?debug=1` handle - extend it when you add a layer.
+
 ## How to Submit a Pull Request
 
 1. **Title Format**: Start your PR title with either `FIX:` or `FEAT:`.

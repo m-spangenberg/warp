@@ -16,7 +16,7 @@ All notable changes to Warp are documented in this file. Each version lists its 
 - Changed: the headless test suite covers the bank registry, auto-generated panel rows, warp presets, the hidden easter egg, quote display, and v1→v2 migration (`tests/test-soundbank.js`).
 - Fixed sound coming back ~1 s after switching the master Sound toggle off: the iOS interruption-recovery "blind resume" now respects a user mute (inherited from v0.2.1).
 - Fixed the hidden Collective layer bleeding into the default soundscape: egg-locked layers are now forced silent by the engine while their easter egg is inactive.
-- Changed sound names and lore: Core Hum → Core; wind → “Undulating isolinear cooling fluidics”; cooling → “Muffled inertial dampning field resonators”.
+- Changed sound names and lore: Core Hum → Core; wind → “Undulating isolinear cooling fluidics”; cooling → “Muffled inertial dampening field resonators”.
 
 ## v0.2.1
 

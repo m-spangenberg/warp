@@ -19,7 +19,7 @@ Recreates the soothing low-frequency rumble of a Galaxy-class starship cruising 
 > [!WARNING]
 > **Known Bug:** On iOS, audio will fail to resume when reopening the app. A workaround is to switch audio toggle to off then close the app before reopening it.
 
-*Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.*
+*Contributions are welcome - see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.*
 
 ---
 

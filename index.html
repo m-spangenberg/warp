@@ -571,6 +571,11 @@
                 <div class="toggle" id="soundToggle" role="switch" tabindex="0" aria-checked="false" aria-label="Sound"></div>
             </div>
 
+            <div class="setting-group toggle-row">
+                <label for="reactiveToggle">Reactive</label>
+                <div class="toggle" id="reactiveToggle" role="switch" tabindex="0" aria-checked="false" aria-label="Reactive visuals"></div>
+            </div>
+
             <div class="setting-group">
                 <label id="warpLabel">Warp</label>
                 <div class="chip-row" id="warpChips" role="group" aria-labelledby="warpLabel"></div>
@@ -608,6 +613,13 @@
 
             <!-- Sound layers (auto-generated from the sound bank in sounds/) -->
             <div class="layer-rows" id="layerRows"></div>
+
+            <!-- Standby: fade the whole mix out to silence -->
+            <div class="setting-group">
+                <label id="standbyLabel">Standby</label>
+                <div class="chip-row" id="standbyChips" role="group" aria-labelledby="standbyLabel"></div>
+                <span class="display-val" id="standbyDisplay" style="min-width: 52px">—</span>
+            </div>
         </div>
 
         <div class="settings-divider" aria-hidden="true"></div>
@@ -643,9 +655,10 @@
         import { SOUND_BANK } from './sounds/bank.js';
         import { WarpEngine } from './sounds/engine.js';
         import { WARP_PRESETS } from './presets/warp.js';
+        import { ONE_SHOTS } from './sounds/one-shots.js';
 
         // Release version - keep in sync with CHANGELOG.md
-        const APP_VERSION = '0.3.0';
+        const APP_VERSION = '0.4.0';
 
         const canvas = document.getElementById('warpCanvas');
         const ctx = canvas.getContext('2d');
@@ -673,6 +686,7 @@
         let showTrails = false;
         let rearView = false;
         let aberration = 0;
+        let streakScale = 1; // sound-reactive breathing of trail length (1 = as drawn)
 
         class Star {
             constructor() { this.reset(true); }
@@ -711,9 +725,15 @@
 
                 ctx.lineCap = 'round';
 
-                // Base trail - always rendered exactly as before.
+                // Trail start, scaled along the star's path. streakScale is
+                // 1 unless the (opt-in) sound-reactive visuals are breathing
+                // it with the reactor pulse.
+                const ax = sx - (sx - this.px) * streakScale;
+                const ay = sy - (sy - this.py) * streakScale;
+
+                // Base trail.
                 ctx.beginPath();
-                ctx.moveTo(this.px, this.py);
+                ctx.moveTo(ax, ay);
                 ctx.lineTo(sx, sy);
                 ctx.strokeStyle = `rgba(220, 240, 255, ${alpha})`;
                 ctx.lineWidth = strokeWidth;
@@ -735,13 +755,13 @@
                 ctx.lineWidth = Math.max(0.5, strokeWidth * 0.85);
 
                 ctx.beginPath();
-                ctx.moveTo(this.px + ux * shift, this.py + uy * shift);
+                ctx.moveTo(ax + ux * shift, ay + uy * shift);
                 ctx.lineTo(sx + ux * shift, sy + uy * shift);
                 ctx.strokeStyle = `rgba(255, 96, 96, ${fringeAlpha})`;
                 ctx.stroke();
 
                 ctx.beginPath();
-                ctx.moveTo(this.px - ux * shift, this.py - uy * shift);
+                ctx.moveTo(ax - ux * shift, ay - uy * shift);
                 ctx.lineTo(sx - ux * shift, sy - uy * shift);
                 ctx.strokeStyle = `rgba(96, 140, 255, ${fringeAlpha})`;
                 ctx.stroke();
@@ -757,6 +777,20 @@
         }
 
         function animate() {
+            // Sound-reactive visuals (opt-in): the streaks breathe with the
+            // reactor pulse, the edge glow follows the core hum. The engine
+            // integrates both on the audio clock, so the canvas moves with
+            // the sound instead of beside it.
+            let reactive = null;
+            if (state.sound.reactive && state.sound.enabled && engine) {
+                reactive = engine.getReactive();
+            }
+            streakScale = reactive ? 1 + 0.15 * reactive.pulse : 1;
+            if (reactive && state.starfield.edgeGlow > 0) {
+                const glow = state.starfield.edgeGlow * (1 + 0.35 * (reactive.hum * 2 - 1));
+                edgeGlowEl.style.opacity = Math.max(0, Math.min(1, glow));
+            }
+
             ctx.fillStyle = showTrails ? 'rgba(0, 0, 0, 0.25)' : '#000000';
             ctx.fillRect(0, 0, width, height);
             for (let star of stars) {
@@ -783,7 +817,7 @@
             return {
                 v: 2,
                 starfield: { speed: 15, count: 800, trails: false, rearView: false, aberration: 0, edgeGlow: 0 },
-                sound: { enabled: false, master: 0.3, phaseDup: 0, width: 0.8, reverb: 1.0, chorus: 0.8 },
+                sound: { enabled: false, master: 0.3, phaseDup: 0, width: 0.8, reverb: 1.0, chorus: 0.8, reactive: false, standby: null },
                 warp: 'warp-4',
                 layers: Object.fromEntries(SOUND_BANK.map((def) => [def.id, {
                     enabled: def.enabledByDefault === true,
@@ -805,6 +839,19 @@
             const cWidth = clampNum(so.width, 0, 1); if (cWidth !== null) so.width = cWidth;
             const cRev = clampNum(so.reverb, 0, 1); if (cRev !== null) so.reverb = cRev;
             const cChor = clampNum(so.chorus, 0, 1); if (cChor !== null) so.chorus = cChor;
+            so.reactive = !!so.reactive;
+            // Standby: keep only a well-formed fade descriptor, else null.
+            const sb = so.standby;
+            if (sb && typeof sb === 'object') {
+                const sbMin = clampNum(sb.minutes, 1, 600);
+                const sbAt = clampNum(sb.startedAt, 0, Date.now() + 3600000);
+                const sbFrom = clampNum(sb.from, 0, 1);
+                so.standby = (sbMin !== null && sbAt !== null && sbFrom !== null)
+                    ? { minutes: sbMin, startedAt: sbAt, from: sbFrom }
+                    : null;
+            } else {
+                so.standby = null;
+            }
         }
 
         function presetMatches(preset, s) {
@@ -985,6 +1032,10 @@
             // armOneShotResume are no-ops while sound is off), so this can
             // never revive a user-muted context.
             audioCtx.onstatechange = () => {
+                if (audioCtx.state === 'running') {
+                    reconcileStandby(); // a suspended standby fade re-anchors on wall-clock time
+                    return;
+                }
                 if (audioCtx.state !== 'interrupted' && audioCtx.state !== 'suspended') return;
                 armOneShotResume();
                 setTimeout(() => {
@@ -1003,6 +1054,7 @@
                 egg: state.egg, // live reference: egg toggles re-gate the layers
             });
             engine.setInstanceCount(1 + state.sound.phaseDup);
+            reconcileStandby(); // re-anchor a persisted standby fade
         }
 
         // Push the current sound state into the live graph (no-op before the
@@ -1020,6 +1072,133 @@
                 for (const p of def.params) engine.setLayerValue(def.id, p.key, st[p.key] ?? p.def);
             }
         }
+
+        // --- The ship answers: one-shots (proximity ping, LCARS console) ---
+        //
+        // One-shots are not ambient: they fire on a moment and are gone.
+        // The hidden proximity ping and the faint LCARS beeps both run
+        // through the main instance's FX chain (engine.fireOneShot), so
+        // they sound like they happen inside the ship, not in your room.
+
+        function uiSound(name) {
+            if (!state.sound.enabled || !ONE_SHOTS[name]) return; // a silent ship stays silent
+            const fire = () => {
+                if (engine && audioCtx.state === 'running') {
+                    engine.fireOneShot(ONE_SHOTS[name]);
+                    if (window.__warp) window.__warp.beeps += 1;
+                }
+            };
+            if (engine && audioCtx.state === 'running') fire();
+            else { startSynthesizer(); setTimeout(fire, 200); }
+        }
+
+        // The proximity ping: five quick taps on the starfield send a faint
+        // sonar ping. One-shots don't belong in the sleep ambient - but as
+        // a secret, they're delightful.
+        let pingTapCount = 0;
+        let pingTapTimer = null;
+        const PING_TAPS = 5;
+
+        canvas.addEventListener('pointerdown', () => {
+            pingTapCount += 1;
+            clearTimeout(pingTapTimer);
+            pingTapTimer = setTimeout(() => { pingTapCount = 0; }, 3000);
+            if (pingTapCount >= PING_TAPS) {
+                pingTapCount = 0;
+                if (window.__warp) window.__warp.pingFired += 1;
+                uiSound('ping');
+            }
+        });
+
+        // --- Standby: the ship goes to sleep ---
+        //
+        // Pick a fade-out (25/50/100 min) and the master volume ramps
+        // linearly to silence over that time. The fade is tracked in
+        // wall-clock terms (state.sound.standby = { minutes, startedAt,
+        // from }) and persisted, so it survives reloads and background
+        // suspensions: reconcileStandby() re-anchors the audio ramp from
+        // the wall-clock level whenever the engine (re)starts. The master
+        // slider always takes the wheel back.
+
+        const STANDBY_CHOICES = [0, 25, 50, 100]; // minutes; 0 = off
+        const standbyChipsEl = document.getElementById('standbyChips');
+        const standbyDisplayEl = document.getElementById('standbyDisplay');
+
+        for (const m of STANDBY_CHOICES) {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'chip';
+            chip.id = 'standbyChip-' + m;
+            chip.textContent = m === 0 ? 'Off' : m + 'm';
+            chip.title = m === 0 ? 'No standby fade' : 'Fade the mix to silence over ' + m + ' minutes';
+            chip.setAttribute('aria-pressed', 'false');
+            chip.addEventListener('click', () => selectStandby(m));
+            standbyChipsEl.appendChild(chip);
+        }
+
+        function updateStandbyDisplay() {
+            const sb = state.sound.standby;
+            if (!sb) { standbyDisplayEl.textContent = '—'; return; }
+            const remaining = sb.minutes * 60 - (Date.now() - sb.startedAt) / 1000;
+            standbyDisplayEl.textContent = remaining > 0 ? '≈ ' + Math.ceil(remaining / 60) + 'm' : '…';
+        }
+
+        function syncStandbyChips() {
+            const active = state.sound.standby ? state.sound.standby.minutes : 0;
+            for (const m of STANDBY_CHOICES) {
+                const chip = document.getElementById('standbyChip-' + m);
+                chip.classList.toggle('active', m === active);
+                chip.setAttribute('aria-pressed', String(m === active));
+            }
+            updateStandbyDisplay();
+        }
+
+        // The level the mix is actually at right now (the live gain when
+        // the engine exists, else the saved slider value).
+        function currentMasterLevel() {
+            if (engine && audioCtx) return engine.master.gain.value;
+            return state.sound.master;
+        }
+
+        function selectStandby(minutes) {
+            if (minutes === 0) {
+                if (!state.sound.standby) return;
+                state.sound.standby = null;
+                if (engine) engine.setMasterVolume(state.sound.master); // back to the user's level
+                syncStandbyChips();
+                saveSettings();
+                return;
+            }
+            state.sound.standby = { minutes, startedAt: Date.now(), from: currentMasterLevel() };
+            reconcileStandby();
+            uiSound('standby');
+            syncStandbyChips();
+            saveSettings();
+        }
+
+        // Re-anchor the fade from wall-clock time. Cheap; called on engine
+        // (re)start, context resume, standby changes, and every 15 s.
+        function reconcileStandby() {
+            const sb = state.sound.standby;
+            if (!sb) return;
+            const total = sb.minutes * 60;
+            const remaining = total - (Date.now() - sb.startedAt) / 1000;
+            if (remaining <= 0) {
+                if (engine) engine.setMasterNow(0);
+                state.sound.standby = null;
+                syncStandbyChips();
+                saveSettings();
+                return;
+            }
+            const level = sb.from * (remaining / total);
+            if (engine && audioCtx && audioCtx.state === 'running') {
+                engine.setMasterNow(level);
+                engine.rampMasterTo(0, remaining);
+            }
+            updateStandbyDisplay();
+        }
+
+        setInterval(() => { if (state.sound.standby) reconcileStandby(); }, 15000);
 
         // --- Control panel: static controls ---
         const edgeGlowEl = document.getElementById('edgeGlow');
@@ -1090,14 +1269,27 @@
             state.sound.enabled = turningOn;
             if (turningOn) {
                 startSynthesizer();
+                uiSound('chime');
             } else if (audioCtx && audioCtx.state === 'running') {
                 audioCtx.suspend();
             }
             saveSettings();
         });
 
+        document.getElementById('reactiveToggle').addEventListener('click', function() {
+            state.sound.reactive = !state.sound.reactive;
+            this.classList.toggle('active', state.sound.reactive);
+            this.setAttribute('aria-checked', String(state.sound.reactive));
+            saveSettings();
+        });
+
         document.getElementById('masterRange').addEventListener('input', (e) => {
             const val = state.sound.master = parseFloat(e.target.value);
+            // Moving the master takes the wheel away from a standby fade.
+            if (state.sound.standby) {
+                state.sound.standby = null;
+                syncStandbyChips();
+            }
             setDisplay('masterDisplay', Math.round(val * 100) + '%');
             if (engine) engine.setMasterVolume(val);
             saveSettings();
@@ -1168,6 +1360,7 @@
             syncWarpChips();
             renderLayerRows();
             applySoundToEngine();
+            uiSound('chirp');
             saveSettings();
         }
 
@@ -1305,6 +1498,7 @@
 
             const so = state.sound;
             setToggle('soundToggle', so.enabled);
+            setToggle('reactiveToggle', so.reactive);
             setVal('masterRange', so.master);
             setDisplay('masterDisplay', Math.round(so.master * 100) + '%');
             setVal('phaseDupRange', so.phaseDup);
@@ -1318,6 +1512,7 @@
 
             syncWarpChips();
             renderLayerRows();
+            syncStandbyChips();
         }
 
         function applyStarfieldToRuntime() {
@@ -1449,8 +1644,14 @@
                 get engine() { return engine; },
                 get bank() { return SOUND_BANK; },
                 get quotes() { return loadedQuotes; },
+                get streakScale() { return streakScale; },
+                getReactive: () => (engine ? engine.getReactive() : null),
                 applyWarp,
                 toggleBorg,
+                selectStandby,
+                tickStandby: reconcileStandby,
+                pingFired: 0,
+                beeps: 0,
             };
         }
 
@@ -1467,6 +1668,7 @@
         settingsPanel.inert = true; // hidden panel stays out of the tab order
 
         const openPanel = () => {
+            const wasOpen = settingsPanel.classList.contains('open');
             settingsPanel.classList.add('open');
             settingsPanel.inert = false;
             document.body.classList.add('panel-open');
@@ -1474,6 +1676,7 @@
             panelToggle.style.opacity = ''; // the panel-open CSS state takes over
             clearTimeout(settingsHideTimer);
             settingsHideTimer = setTimeout(closePanel, SETTINGS_IDLE_MS);
+            if (!wasOpen) uiSound('blip'); // the console wakes
         };
 
         const closePanel = () => {

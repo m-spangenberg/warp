@@ -8,6 +8,13 @@
 //
 // Every layer sits behind its own gain gate, so enabling/disabling a
 // sound is a short ramp on the gate and never rebuilds the graph.
+//
+// The engine also owns the two things that cut across layers:
+//   getReactive() - a phase model of the pulse LFO and the core hum's
+//     beat, integrated on the audio clock, so the canvas can move with
+//     the sound instead of beside it (see index.html, opt-in).
+//   fireOneShot() - fires a one-shot builder (proximity ping, LCARS
+//     console beeps) into the main instance's FX chain.
 
 import { SOUND_BANK } from './bank.js';
 import { makePinkNoiseBuffer } from './noise.js';
@@ -42,6 +49,11 @@ export class WarpEngine {
   constructor(ctx, state) {
     this.ctx = ctx;
     this.state = state;
+
+    // getReactive() phase accumulators (audio-clock integrated).
+    this.lastReactiveT = null; // lazy: anchored on the first visual frame
+    this.pulsePhase = 0;
+    this.humBeatPhase = 0;
 
     this.noiseBuffer = makePinkNoiseBuffer(ctx);
     this.reverbBuffer = makeReverbBuffer(ctx);
@@ -137,7 +149,7 @@ export class WarpEngine {
       };
     }
 
-    const inst = { bus, dryBus, midGain, sideGain, reverbGain, chorusGain, chorusLFO, layers };
+    const inst = { bus, dryBus, synthBus, midGain, sideGain, reverbGain, chorusGain, chorusLFO, layers };
     inst.stop = () => {
       for (const layer of Object.values(layers)) layer.api.stop();
       try { chorusLFO.stop(); } catch (e) {}
@@ -196,7 +208,60 @@ export class WarpEngine {
 
   setMasterVolume(value) {
     this.state.master = value;
-    this.master.gain.setValueAtTime(value, this.ctx.currentTime);
+    const t = this.ctx.currentTime;
+    this.master.gain.cancelScheduledValues(t);
+    this.master.gain.setValueAtTime(value, t);
+  }
+
+  // Jump the master to `level` right now without touching the saved
+  // state (the standby fade uses this to re-anchor the ramp).
+  setMasterNow(level) {
+    const t = this.ctx.currentTime;
+    this.master.gain.cancelScheduledValues(t);
+    this.master.gain.setValueAtTime(level, t);
+  }
+
+  // Linear ramp from the current level to `value` over `seconds`.
+  rampMasterTo(value, seconds) {
+    this.master.gain.linearRampToValueAtTime(value, this.ctx.currentTime + seconds);
+  }
+
+  // Fire a one-shot builder (ctx, out) => {} into the main instance's FX
+  // chain. One-shots are never part of the ambient bed; they just pass
+  // through the same reverb/chorus/width so they sound like the ship.
+  fireOneShot(build) {
+    if (!this.instances.length) return;
+    build(this.ctx, this.instances[0].synthBus);
+  }
+
+  // Sound-reactive visuals: the current value of the two slow "life
+  // signs" of the mix, computed on the audio clock so the canvas and
+  // the sound share the ship's time.
+  //
+  // The pulse layer's LFO is a sine at `pulse.speed` Hz started at phase
+  // 0; we integrate the same phase (with the live speed), so it tracks
+  // the oscillator through speed changes. The core hum's two ~58/58.7
+  // Hz sines beat at 0.7 * pitch Hz; the beat *energy* (cos^2 of the
+  // half-beat phase) is what a glow should follow.
+  //
+  // Returns { pulse: -1..1 (0 when the pulse layer is off),
+  //           hum: 0..1 (0.5 = neutral, when the core hum is off) }.
+  getReactive() {
+    const t = this.ctx.currentTime;
+    let dt = this.lastReactiveT === null ? 0 : t - this.lastReactiveT;
+    this.lastReactiveT = t;
+    if (dt < 0) dt = 0;
+    else if (dt > 0.25) dt = 0.25; // long gap (tab hidden, suspension):
+                                   // keep the tempo, drop the missing phase
+    const pulse = this.state.layers['pulse'];
+    const hum = this.state.layers['core-hum'];
+    this.pulsePhase = (this.pulsePhase + 2 * Math.PI * pulse.speed * dt) % (2 * Math.PI);
+    this.humBeatPhase = (this.humBeatPhase + Math.PI * 0.7 * hum.pitch * dt) % (2 * Math.PI);
+    const c = Math.cos(this.humBeatPhase);
+    return {
+      pulse: pulse.enabled ? Math.sin(this.pulsePhase) : 0,
+      hum: hum.enabled ? c * c : 0.5,
+    };
   }
 
   dispose() {

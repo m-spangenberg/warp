@@ -164,6 +164,131 @@ async function main() {
     toggleOn: document.getElementById('soundToggle').classList.contains('active'),
   }));
 
+  // 12. Sound-reactive visuals (opt-in): default off; frozen while sound
+  //     is off; the engine's audio-clock model modulates while sound runs.
+  let panelOpen = await page.evaluate(() =>
+    document.querySelector('.settings').classList.contains('open'));
+  if (!panelOpen) { await page.click('#panelToggle'); await new Promise((r) => setTimeout(r, 400)); }
+
+  results.reactiveDefault = await page.evaluate(() => ({
+    state: window.__warp.state.sound.reactive,
+    toggleActive: document.getElementById('reactiveToggle').classList.contains('active'),
+  }));
+
+  // Sound is off (step 11): values exist but must not modulate.
+  results.reactiveSoundOff = await page.evaluate(async () => {
+    const a = window.__warp.getReactive();
+    await new Promise((r) => setTimeout(r, 500));
+    const b = window.__warp.getReactive();
+    return { a, b, frozen: a.pulse === b.pulse && a.hum === b.hum };
+  });
+
+  // Turn sound back on with a real gesture, then enable reactive.
+  await page.click('#soundToggle');
+  await new Promise((r) => setTimeout(r, 600));
+  await page.click('#reactiveToggle');
+  await new Promise((r) => setTimeout(r, 300));
+
+  const sampleReactive = () => page.evaluate(() => ({
+    r: window.__warp.getReactive(),
+    ss: window.__warp.streakScale,
+  }));
+  const s1 = await sampleReactive();
+  await new Promise((r) => setTimeout(r, 1200));
+  const s2 = await sampleReactive();
+  results.reactiveModulated = {
+    a: s1, b: s2,
+    humRange: Math.abs(s1.r.hum - s2.r.hum),
+    pulseRange: Math.abs(s1.r.pulse - s2.r.pulse),
+    streakInBand: s1.ss >= 0.84 && s1.ss <= 1.16 && s2.ss >= 0.84 && s2.ss <= 1.16,
+  };
+  results.reactivePersisted = await page.evaluate(() => ({
+    stored: JSON.parse(localStorage.getItem('warp.settings.v2')).sound.reactive,
+    state: window.__warp.state.sound.reactive,
+  }));
+
+  // 13. Proximity ping easter egg: five quick taps on the starfield.
+  panelOpen = await page.evaluate(() =>
+    document.querySelector('.settings').classList.contains('open'));
+  if (panelOpen) { await page.click('#panelToggle'); await new Promise((r) => setTimeout(r, 400)); }
+
+  const pingBefore = await page.evaluate(() => window.__warp.pingFired);
+  for (let i = 0; i < 5; i++) {
+    await page.mouse.click(100, 700); // open starfield, clear of panel/CTA
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  await new Promise((r) => setTimeout(r, 500));
+  results.proximityPing = await page.evaluate((before) => ({
+    fired: window.__warp.pingFired - before,
+    beeps: window.__warp.beeps,
+  }), pingBefore);
+
+  // 14. Standby sleep timer: a 3 s fade (0.05 min) runs the full path -
+  //     schedule -> ramp -> completion -> auto-clear - and the master
+  //     slider takes the wheel back. Then a real 25 m fade: chip +
+  //     persistence, cleared with Off.
+  await page.evaluate(() => window.__warp.selectStandby(0.05));
+  await new Promise((r) => setTimeout(r, 500));
+  results.standbyActive = await page.evaluate(() => ({
+    standby: window.__warp.state.sound.standby,
+    master: window.__warp.engine.master.gain.value,
+    masterFading: window.__warp.engine.master.gain.value < 0.3 && window.__warp.engine.master.gain.value > 0.15,
+    display: document.getElementById('standbyDisplay').textContent,
+    stored: JSON.parse(localStorage.getItem('warp.settings.v2')).sound.standby,
+  }));
+  await new Promise((r) => setTimeout(r, 3000)); // past the 3 s fade
+  await page.evaluate(() => window.__warp.tickStandby());
+  results.standbyDone = await page.evaluate(() => ({
+    standby: window.__warp.state.sound.standby,
+    master: window.__warp.engine.master.gain.value,
+    display: document.getElementById('standbyDisplay').textContent,
+  }));
+  await page.evaluate(() => {
+    const s = document.getElementById('masterRange');
+    s.value = '0.3';
+    s.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await new Promise((r) => setTimeout(r, 300));
+  results.masterRestored = await page.evaluate(() => ({
+    master: window.__warp.engine.master.gain.value,
+    standby: window.__warp.state.sound.standby,
+  }));
+  await page.evaluate(() => window.__warp.selectStandby(25));
+  await new Promise((r) => setTimeout(r, 300));
+  results.standby25 = await page.evaluate(() => ({
+    standby: window.__warp.state.sound.standby,
+    chip25: document.getElementById('standbyChip-25').classList.contains('active'),
+    display: document.getElementById('standbyDisplay').textContent,
+    stored: JSON.parse(localStorage.getItem('warp.settings.v2')).sound.standby,
+  }));
+  await page.evaluate(() => document.getElementById('standbyChip-0').click());
+  await new Promise((r) => setTimeout(r, 300));
+  results.standbyOff = await page.evaluate(() => ({
+    standby: window.__warp.state.sound.standby,
+    master: window.__warp.engine.master.gain.value,
+    chipOff: document.getElementById('standbyChip-0').classList.contains('active'),
+  }));
+
+  // 15. LCARS console beeps: the ship acknowledges panel and preset
+  //     actions (faint one-shots through the FX chain).
+  // (The panel may have been re-opened by a bubbled synthetic click in
+  //  step 14, so put it in a known state first.)
+  const openNow = await page.evaluate(() =>
+    document.querySelector('.settings').classList.contains('open'));
+  if (openNow) { await page.click('#panelToggle'); await new Promise((r) => setTimeout(r, 400)); }
+
+  const beepsBefore = await page.evaluate(() => window.__warp.beeps);
+  // Open the console: the wake blip.
+  await page.click('#panelToggle');
+  await new Promise((r) => setTimeout(r, 500));
+  results.beepPanelOpen = await page.evaluate((before) => window.__warp.beeps - before, beepsBefore);
+  const beepsAfterOpen = await page.evaluate(() => window.__warp.beeps);
+  // Select a warp preset: the acknowledge chirp. Real click inside the
+  // open panel - the bubble only re-arms the idle timer, no extra blip.
+  await page.click('#warpChip-warp-8');
+  await new Promise((r) => setTimeout(r, 300));
+  results.beepWarpPreset = await page.evaluate((before) => window.__warp.beeps - before, beepsAfterOpen);
+
   results.errors = errors;
   await browser.close();
   console.log(JSON.stringify(results, null, 2));

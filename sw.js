@@ -3,7 +3,7 @@
 /* Bump the version when CORE_ASSETS gains/loses files so existing installs
    refresh their precache. (Content-only changes are picked up automatically
    for navigation; assets are cache-first.) */
-const CACHE_NAME = 'starfield-warp-v3';
+const CACHE_NAME = 'starfield-warp-v4';
 
 /* Everything the app needs to run with zero network. */
 const CORE_ASSETS = [
@@ -22,6 +22,10 @@ const CORE_ASSETS = [
   './sounds/pulse.js',
   './sounds/wind.js',
   './sounds/cooling.js',
+  './sounds/deflector.js',
+  './sounds/comms.js',
+  './sounds/reactor.js',
+  './sounds/one-shots.js',
   './sounds/borg.js',
   './presets/warp.js',
   './data/quotes.txt',

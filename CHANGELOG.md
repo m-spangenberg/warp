@@ -2,6 +2,21 @@
 
 All notable changes to Warp are documented in this file. Each version lists its changes by type: Added, Changed, Deprecated, Removed, Fixed, Security.
 
+## v0.4.0
+
+- Added sound-reactive visuals (opt-in, default off): with the new Reactive switch, the star streaks breathe with the reactor pulse LFO and the edge glow follows the core hum. The engine integrates both on the audio clock, so the canvas moves *with* the sound instead of beside it. Off, the starfield and soundscape stay fully independent.
+- Added three new ambient layers (all synthesized, no assets, off by default so the stock sound is unchanged):
+  - Deflector - a soft high shimmer of the deflector field on a very slow LFO, very quiet.
+  - Comms - a muffled bridge conversation: bandpassed noise chopped into word-like bursts with sentence pauses.
+  - Reactor - rare, slow metallic creaks: the hull and reactor settling.
+- Added a hidden proximity ping: tap the starfield five times and the ship answers with a faint sonar ping through the FX chain. One-shots don't belong in the sleep ambient, but as a secret they're delightful.
+- Added faint LCARS console beeps: the panel waking, warp preset selection, the sound toggle, and arming standby each get a soft computer acknowledgement. Very quiet, and only with sound on.
+- Added a Standby sleep timer: fade the whole mix to silence over 25/50/100 minutes - the ship goes into standby. The fade is wall-clock based and persisted, so it survives reloads and background suspensions; the countdown shows in the panel, and the master slider always takes the wheel back.
+- Changed: settings persist the new `reactive` and `standby` state under `warp.settings.v2` (new keys default cleanly - no migration needed).
+- Changed: the new layers join the warp factor presets (deflector and reactor respond to the warp factor; comms doesn't - bridge chatter is independent of speed).
+- Changed: the service worker precache includes the new sound files (`starfield-warp-v4`).
+- Changed: the headless test suite covers the new bank layers, the reactive coupling, the proximity ping, the standby fade lifecycle, and the console beeps (`tests/test-soundbank.js`).
+
 ## v0.3.0
 
 - Added a modular sound bank: every soundscape element is now a self-describing layer in its own file under `sounds/` (core hum, pulse, wind, cooling). Adding a new sound is dropping in one file - no engine, panel, or persistence plumbing (see CONTRIBUTING.md).

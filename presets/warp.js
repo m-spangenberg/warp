@@ -15,6 +15,8 @@ export const WARP_PRESETS = [
       'pulse': { volume: 0.1, speed: 0.15 },
       'wind': { volume: 0.1, speed: 0.05 },
       'cooling': { volume: 0.05, speed: 0.05 },
+      'deflector': { volume: 0.02, speed: 0.03 },
+      'reactor': { volume: 0.08, speed: 0.5 },
     },
   },
   {
@@ -26,6 +28,8 @@ export const WARP_PRESETS = [
       'pulse': { volume: 0.15, speed: 0.77 },
       'wind': { volume: 0.28, speed: 0.13 },
       'cooling': { volume: 0.25, pitch: 0.5, speed: 0.1 },
+      'deflector': { volume: 0.05, speed: 0.05 },
+      'reactor': { volume: 0.15, speed: 1 },
     },
   },
   {
@@ -37,6 +41,8 @@ export const WARP_PRESETS = [
       'pulse': { volume: 0.2, speed: 1.1 },
       'wind': { volume: 0.35, speed: 0.22, pitch: 1.2 },
       'cooling': { volume: 0.3, pitch: 0.75, speed: 0.18 },
+      'deflector': { volume: 0.08, speed: 0.08 },
+      'reactor': { volume: 0.2, speed: 1.6 },
     },
   },
   {
@@ -48,6 +54,8 @@ export const WARP_PRESETS = [
       'pulse': { volume: 0.25, speed: 1.5 },
       'wind': { volume: 0.45, speed: 0.32, pitch: 1.45 },
       'cooling': { volume: 0.35, pitch: 1, speed: 0.3 },
+      'deflector': { volume: 0.1, speed: 0.12 },
+      'reactor': { volume: 0.25, speed: 2.2 },
     },
   },
 ];

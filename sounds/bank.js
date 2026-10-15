@@ -27,8 +27,11 @@ import coreHum from './core-hum.js';
 import pulse from './pulse.js';
 import wind from './wind.js';
 import cooling from './cooling.js';
+import deflector from './deflector.js';
+import comms from './comms.js';
+import reactor from './reactor.js';
 import borg from './borg.js';
 
-export const SOUND_BANK = [coreHum, pulse, wind, cooling, borg];
+export const SOUND_BANK = [coreHum, pulse, wind, cooling, deflector, comms, reactor, borg];
 
 export const bankLayer = (id) => SOUND_BANK.find((l) => l.id === id);

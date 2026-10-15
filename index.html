@@ -924,9 +924,11 @@
         // runs first so the hardware is warm when the graph resumes. Safe
         // to call outside a user gesture: where the browser refuses (iOS
         // after an interruption) the one-shot armer below picks it up on
-        // the next touch.
+        // the next touch. Never fights an intentional mute: if the user
+        // switched sound off, the suspended state is final.
         async function ensureAudioRunning() {
             if (!audioCtx || audioCtx.state === 'running') return;
+            if (!state.sound.enabled) return;
             if (isIOS()) await kickstartIOSAudio();
             try { await audioCtx.resume(); } catch (err) { /* next gesture */ }
         }
@@ -979,7 +981,9 @@
             // iOS yanks the context when system audio takes over (call,
             // Siri, Control Center, app switch). A delayed blind resume
             // sometimes succeeds; the gesture-gated one always does, so do
-            // both whenever the user still has sound on.
+            // both. Both respect the master toggle (ensureAudioRunning /
+            // armOneShotResume are no-ops while sound is off), so this can
+            // never revive a user-muted context.
             audioCtx.onstatechange = () => {
                 if (audioCtx.state !== 'interrupted' && audioCtx.state !== 'suspended') return;
                 armOneShotResume();
@@ -996,6 +1000,7 @@
                 master: state.sound.master,
                 fx: { width: state.sound.width, reverb: state.sound.reverb, chorus: state.sound.chorus },
                 layers: state.layers,
+                egg: state.egg, // live reference: egg toggles re-gate the layers
             });
             engine.setInstanceCount(1 + state.sound.phaseDup);
         }
@@ -1440,6 +1445,7 @@
                 get stars() { return stars; },
                 get rearView() { return rearView; },
                 get state() { return state; },
+                get audioCtx() { return audioCtx; },
                 get engine() { return engine; },
                 get bank() { return SOUND_BANK; },
                 get quotes() { return loadedQuotes; },

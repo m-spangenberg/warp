@@ -35,7 +35,9 @@ export class WarpEngine {
   /**
    * @param {AudioContext} ctx
    * @param {object} state snapshot: { master, fx: {width, reverb, chorus},
-   *   layers: { [layerId]: { enabled, ...paramValues } } }
+   *   layers: { [layerId]: { enabled, ...paramValues } }, egg: { [eggName]: bool } }
+   *   Layers with an `egg` in their descriptor are kept silent while that
+   *   egg is inactive, no matter what their saved enabled value says.
    */
   constructor(ctx, state) {
     this.ctx = ctx;
@@ -124,8 +126,9 @@ export class WarpEngine {
       const st = this.state.layers[def.id] || {};
       const values = {};
       for (const p of def.params) values[p.key] = st[p.key] ?? p.def;
+      const eggActive = !def.egg || !!(this.state.egg && this.state.egg[def.egg]);
       const gate = ctx.createGain();
-      gate.gain.setValueAtTime(st.enabled ? 1 : 0, now);
+      gate.gain.setValueAtTime(st.enabled && eggActive ? 1 : 0, now);
       gate.connect(synthBus);
       layers[def.id] = {
         def,
@@ -160,8 +163,11 @@ export class WarpEngine {
       const layer = inst.layers[id];
       if (!layer) continue;
       this.state.layers[id].enabled = on;
+      // Egg-locked layers can never sound while their egg is inactive.
+      const eggActive = !layer.def.egg || !!(this.state.egg && this.state.egg[layer.def.egg]);
+      const effectiveOn = on && eggActive;
       layer.gate.gain.cancelScheduledValues(now);
-      layer.gate.gain.setTargetAtTime(on ? 1 : 0, now, GATE_RAMP);
+      layer.gate.gain.setTargetAtTime(effectiveOn ? 1 : 0, now, GATE_RAMP);
     }
   }
 

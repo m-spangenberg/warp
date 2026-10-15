@@ -3,7 +3,7 @@
 /* Bump the version when CORE_ASSETS gains/loses files so existing installs
    refresh their precache. (Content-only changes are picked up automatically
    for navigation; assets are cache-first.) */
-const CACHE_NAME = 'starfield-warp-v2';
+const CACHE_NAME = 'starfield-warp-v3';
 
 /* Everything the app needs to run with zero network. */
 const CORE_ASSETS = [

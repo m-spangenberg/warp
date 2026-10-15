@@ -7,7 +7,7 @@
 export default {
   id: 'cooling',
   label: 'Cooling',
-  flavor: 'Muffled industrial hum of engineering.',
+  flavor: 'Muffled inertial dampning field resonators.',
   enabledByDefault: false,
   params: [
     { key: 'volume', label: 'Volume', min: 0, max: 1, step: 0.01, def: 0.25, format: (v) => Math.round(v * 100) + '%' },

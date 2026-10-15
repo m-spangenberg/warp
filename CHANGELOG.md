@@ -14,6 +14,9 @@ All notable changes to Warp are documented in this file. Each version lists its 
 - Changed: the cooling layer now runs through the same reverb/chorus/width chain as the other sounds, so Phase Dups affect it too (slightly richer).
 - Changed: the service worker precache includes the sound bank, presets, and quotes (`starfield-warp-v2`).
 - Changed: the headless test suite covers the bank registry, auto-generated panel rows, warp presets, the hidden easter egg, quote display, and v1→v2 migration (`tests/test-soundbank.js`).
+- Fixed sound coming back ~1 s after switching the master Sound toggle off: the iOS interruption-recovery "blind resume" now respects a user mute (inherited from v0.2.1).
+- Fixed the hidden Collective layer bleeding into the default soundscape: egg-locked layers are now forced silent by the engine while their easter egg is inactive.
+- Changed sound names and lore: Core Hum → Core; wind → “Undulating isolinear cooling fluidics”; cooling → “Muffled inertial dampning field resonators”.
 
 ## v0.2.1
 

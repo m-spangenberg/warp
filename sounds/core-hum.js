@@ -1,9 +1,9 @@
-// Core Hum - the deep heartbeat of the warp core: two slightly detuned
+// Core - the deep heartbeat of the warp core: two slightly detuned
 // sine oscillators around 58 Hz, beating against each other.
 
 export default {
   id: 'core-hum',
-  label: 'Core Hum',
+  label: 'Core',
   flavor: 'Deep resonance of the warp core.',
   enabledByDefault: true,
   params: [

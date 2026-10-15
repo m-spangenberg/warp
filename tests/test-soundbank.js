@@ -151,6 +151,17 @@ async function main() {
   results.engineBuilt = await page.evaluate(() => ({
     engineExists: !!window.__warp.engine,
     instances: window.__warp.engine ? window.__warp.engine.instances.length : 0,
+    // Regression: the egg-locked layer must stay silent while the egg is off.
+    borgGateWithEggOff: window.__warp.engine ? window.__warp.engine.instances[0].layers.borg.gate.gain.value : null,
+  }));
+
+  // 11. Master off must stay off: the iOS interruption-recovery "blind
+  //     resume" (1 s after any suspension) must not revive a user mute.
+  await page.evaluate(() => document.getElementById('soundToggle').click()); // off
+  await new Promise((r) => setTimeout(r, 1600)); // past the 1 s blind-resume window
+  results.masterOffStaysOff = await page.evaluate(() => ({
+    ctxState: window.__warp.audioCtx ? window.__warp.audioCtx.state : 'none',
+    toggleOn: document.getElementById('soundToggle').classList.contains('active'),
   }));
 
   results.errors = errors;

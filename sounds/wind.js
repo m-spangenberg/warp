@@ -5,7 +5,7 @@
 export default {
   id: 'wind',
   label: 'Wind',
-  flavor: 'Undulating airflow over the saucer.',
+  flavor: 'Undulating isolinear cooling fluidics.',
   enabledByDefault: true,
   params: [
     { key: 'volume', label: 'Volume', min: 0, max: 1, step: 0.01, def: 0.28, format: (v) => Math.round(v * 100) + '%' },
